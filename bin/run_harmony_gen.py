@@ -17,6 +17,10 @@ from lxml import etree as LET
 from evrp import *
 from pathlib import Path
 
+from src import midi_processing
+from src import ml_modelling
+from src import soft_constraints
+
 import sys
 sys.path.append('./ALNS')
 
