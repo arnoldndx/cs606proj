@@ -1,9 +1,9 @@
 # CS606 Project
-Constraint Satisfaction Approach for Functional Harmony
+Generating Four-Part Harmony (Using Constraint Programming and Evolutionary Techniques)
 
 ## Getting Started
 
-Create environment from envrionment file (to be created)
+Create environment from environment file (to be created)
 
 `conda env create -f cs606proj.yml`
 
