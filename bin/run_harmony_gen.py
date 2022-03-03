@@ -1,72 +1,42 @@
 # -*- coding: utf-8 -*-
 '''
 Created on Mon Feb 28 20:17:15 2022
-
-Dummy driver code from the assignment 2 script. Start with this first.
+Edited by Gab on Thu Mar 3 19:26:00 2022
 
 '''
-
-
-import argparse
-import numpy as np
-import numpy.random as rnd
-import networkx as nx
-import matplotlib.pyplot as plt
-from lxml import etree as LET
-
-from evrp import *
-from pathlib import Path
-
-from src import midi_processing
-from src import ml_modelling
-from src import soft_constraints
-
+#Standard Imports
+import os
 import sys
-sys.path.append('./ALNS')
+import pandas as pd
+# from collections import defaultdict
+import timeit
+from docplex.cp.model import CpoModel
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='load data')
-    parser.add_argument(dest='data', type=str, help='data')
-    parser.add_argument(dest='seed', type=int, help='seed')
-    args = parser.parse_args()
-    
-    # instance file and random seed
-    xml_file = args.data
-    seed = int(args.seed)
-    
-    # load data and random seed
-    parsed = Parser(xml_file)
-    evrp = EVRP(parsed.name, parsed.depot, parsed.customers, parsed.CSs, parsed.vehicle)
-    
-    # construct random initialized solution
-    evrp.random_initialize(seed)
-    print("Initial solution objective is {}.".format(evrp.objective()))
-    
-    # visualize initial solution and gernate output file
-    save_output('YourName', evrp, 'initial')
-    
-    # ALNS
-    random_state = rnd.RandomState(seed)
-    alns = ALNS(random_state)
-    # add destroy
-    # You should add all your destroy and repair operators
-    alns.add_destroy_operator(destroy_1)
-    # add repair
-    alns.add_repair_operator(repair_1)
-    
-    # run ALNS
-    # select cirterion
-    criterion = ...
-    # assigning weights to methods
-    omegas = [...]
-    lambda_ = ...
-    result = alns.iterate(evrp, omegas, lambda_, criterion,
-                          iterations=1000, collect_stats=True)
+#Custom Imports
+sys.path.append('../')
+from src.chord import Chord
+from src.musical_work_input import MusicalWorkInput
+from src.cp_model import CPModel
 
-    # result
-    solution = result.best_state
-    objective = solution.objective()
-    print('Best heuristic objective is {}.'.format(objective))
-    
-    # visualize final solution and gernate output file
-    save_output('YourName', solution, 'solution')
+# Importing Chord Vocabulary
+chord_df = pd.read_csv("../data/chord_vocabulary.csv", index_col = 0)
+chord_vocab = []
+for name, note_intervals in chord_df.itertuples():
+    chord_vocab.append(Chord(name, set(int(x) for x in note_intervals.split(','))))
+
+# Importing Musical Corpus
+musical_work_df = pd.read_csv("../data/sample_input.csv")
+musical_corpus = []
+for i, title, meter, key, tonality, first_on_beat, melody in musical_work_df.itertuples():
+    musical_corpus.append(MusicalWorkInput(title, meter, key, tonality, first_on_beat, [int(x) for x in melody.split(',')]))
+
+# Model
+cp_model = CPModel("test", musical_corpus[0], chord_vocab)
+cp_model.define_decision_variables()
+cp_model.hard_constraint_musical_input()
+cp_model.hard_constraint_voice_ranges()
+#cp_model.hard_constraint_chord_grades() #buggy, don't run this yet
+cp_model.hard_constraint_first_last_chords()
+cp_model.hard_constraint_adjacent_bar_chords()
+cp_model.hard_constraint_voice_crossing()
+solution = cp_model.solve()
