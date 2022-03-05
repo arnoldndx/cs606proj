@@ -1,3 +1,5 @@
+from docplex.cp.model import CpoModel
+
 class CPModel:
     def __init__(self, model_name, musical_input, chord_vocab):
         self.name = model_name #string
