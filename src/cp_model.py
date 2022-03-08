@@ -1,4 +1,5 @@
 from docplex.cp.model import CpoModel
+import src.music_functions
 
 class CPModel:
     def __init__(self, model_name, musical_input, chord_vocab):
@@ -9,7 +10,6 @@ class CPModel:
         self.K = self.musical_input.key
         
         #Initialising Model
-        from docplex.cp.model import CpoModel
         self.m = CpoModel(name=self.name)
         
     def define_decision_variables(self):
@@ -29,11 +29,15 @@ class CPModel:
                 self.m.add(self.x[i,j] >= lb[i-1])
                 self.m.add(self.x[i,j] <= ub[i-1])
     
-    def hard_constraint_chord_grades(self): #Buggy, don't run this yet.
+    def hard_constraint_chord_grades(self, lb = 5, ub = 60): #All notes must belong to the same chord
+        chord_vocab_ext = []
+        for chord in self.chord_vocab:
+            chord_vocab_ext.append(src.music_functions.extend_range(src.music_functions.transpose(chord.note_intervals, self.K)))
         for j in range(self.N):
-            alpha = set([(self.x[i,j] - self.K) % 12 for i in range(4)])
-            chord_options = [chord.index for chord in self.chord_vocab if chord.note_intervals.issubset(alpha)]
-            self.m.add(self.c[j].set_domain(chord_options))
+            for i in range(4):
+                for note in range(lb, ub):
+                    for chord, chord_ext in zip(self.chord_vocab, chord_vocab_ext):
+                        self.m.add(self.m.if_then(self.m.logical_and(self.c[j] == chord.index, self.x[i,j] == note), note in chord_ext))
     
     def hard_constraint_first_last_chords(self):
         if self.musical_input.tonality == "major":
@@ -63,6 +67,10 @@ class CPModel:
         for i in range(3):
             for j in range(self.N):
                 self.m.add(self.x[i,j] >= self.x[i+1,j])
+    
+    def add_hard_constraints(self, *args):
+        for arg in args:
+            arg
     
     def solve(self, log = True):
         sol = self.m.solve(log_output = log)
