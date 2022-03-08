@@ -7,4 +7,5 @@ class Chord:
         self.size = len(note_intervals)
         self.index = Chord.chord_vocab_size
         Chord.chord_vocab_size += 1
+        
 

@@ -1,3 +1,5 @@
+import src.music_functions
+
 class MusicalWorkInput:
     def __init__(self, title, meter, key, tonality, first_on_beat, melody, reference_note = 24):
         self.title = title #string
@@ -9,17 +11,11 @@ class MusicalWorkInput:
         self.reference_note = reference_note #refers to which integer corresponds to middle C, i.e. C4
         self.melody_len = len(self.melody)
     
+    def transpose_work(self, n_semitones, ascending):
+        self.melody = src.music_functions.transpose(self.melody, n_semitones, mod = False, ascending = ascending)
+        self.key = src.music_functions.transpose(self.key, n_semitones, mod = True, ascending = ascneding)
+
     def update_reference_note(self, new_reference_note):
         diff = new_reference_note - self.reference_note
-        self.melody = [note + diff for note in self.melody]
-        self.key = (self.key + diff) % 12
+        self.transpose_work(diff, ascending = True)
         self.reference_note = new_reference_note
-    
-    def transpose(self, n_semitones, ascending):
-        if ascending: #ascending is a boolean
-            diff = n_semitones
-        else:
-            diff = -n_semitones
-        self.melody = [note + diff for note in self.melody]
-        self.key = (self.key + diff) % 12
-
