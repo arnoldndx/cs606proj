@@ -2,15 +2,50 @@ from docplex.cp.model import CpoModel
 import src.music_functions
 
 class CPModel:
-    def __init__(self, model_name, musical_input, chord_vocab):
+    def __init__(self, model_name, musical_input, chord_vocab, hard_constraints, soft_constraints):
         self.name = model_name #string
         self.musical_input = musical_input #An instance of the class MusicalWorkInput
         self.chord_vocab = chord_vocab #A list of objects, each of the class Chord
         self.N = self.musical_input.melody_len
         self.K = self.musical_input.key
+        self.hard_constraints = hard_constraints #A dictionary with constraint names as key and boolean value on whether to include that constraint in the model or not
+        self.soft_constraints = soft_constraints
+        self.costs = {k: 0 for k in soft_constraints.keys()}
         
         #Initialising Model
         self.m = CpoModel(name=self.name)
+        
+        #Decision Variables
+        self.define_decision_variables()
+        
+        #Adding Constraints
+        hard_constraints = {'musical input': self.hard_constraint_musical_input,
+                            'voice range': self.hard_constraint_voice_range,
+                            'chord membership': self.hard_constraint_chord_membership,
+                            'first last chords': self.hard_constraint_first_last_chords,
+                            'adjacent bar chords': self.hard_constraint_adjacent_bar_chords,
+                            'voice crossing': self.hard_constraint_voice_crossing,
+                            'parallel movement': self.hard_constraint_parallel_movement}
+
+        soft_constraints = {'chord progression': self.soft_constraint_chord_progression,
+                            'leap resolution': self.soft_constraint_leap_resolution,
+                            'melodic movement': self.soft_constraint_melodic_movement,
+                            'note repetition': self.soft_constraint_note_repetition,
+                            'parallel movement': self.soft_constraint_parallel_movement,
+                            'voice overlap': self.soft_constraint_voice_overlap,
+                            'chord spacing': self.soft_constraint_chord_spacing,
+                            'distinct notes': self.soft_constraint_distinct_notes,
+                            'voice crossing': self.soft_constraint_voice_crossing,
+                            'voice range': self.soft_constraint_voice_range}
+        for k, v in self.hard_constraints.items():
+            if v:
+                hard_constraints[k]()
+        for k, v in self.soft_constraints.items():
+            if v:
+                self.costs[k] = soft_constraints[k]()
+        
+        #Objective Function
+        self.m.minimize(m.sum(self.costs))
         
     def define_decision_variables(self):
         arr = [(i,j) for i in range(4) for j in range(self.N)]
@@ -22,14 +57,14 @@ class CPModel:
         for j in range(self.N):
             self.m.add(self.x[0,j] == self.musical_input.melody[j])
     
-    def hard_constraint_voice_ranges(self, lb = [19, 12, 5], ub = [38, 28, 26]):
+    def hard_constraint_voice_range(self, lb = [19, 12, 5], ub = [38, 28, 26]):
         #voice_ranges = {1: (19, 38), 2: (12, 28), 3: (5, 26)}
         for i in range(1,4):
             for j in range(self.N):
                 self.m.add(self.x[i,j] >= lb[i-1])
                 self.m.add(self.x[i,j] <= ub[i-1])
     
-    def hard_constraint_chord_grades(self, lb = 5, ub = 60): #All notes must belong to the same chord
+    def hard_constraint_chord_membership(self, lb = 5, ub = 60): #All notes must belong to the same chord
         chord_vocab_ext = []
         for chord in self.chord_vocab:
             chord_vocab_ext.append(src.music_functions.extend_range(src.music_functions.transpose(chord.note_intervals, self.K)))
@@ -68,10 +103,44 @@ class CPModel:
             for j in range(self.N):
                 self.m.add(self.x[i,j] >= self.x[i+1,j])
     
-    def add_hard_constraints(self, *args):
-        for arg in args:
-            arg
+    def hard_constraint_parallel_movement(self, disallowed_intervals = [7, 12]):
+        for j in range(self.N-1):
+            for i1 in range(4):
+                for i2 in range(4):
+                    for interval in disallowed_intervals:
+                        self.m.add(self.m.if_then(self.m.logical_and(x[i1,j] >= x[i2,j], (x[i1,j] - x[i2,j])%12 == interval),
+                                                  (x[i1,j+1] - x[i2,j+1])%12 != interval))
+
+    def soft_constraint_chord_progression(self):
+        pass
     
+    def soft_constraint_leap_resolution(self):
+        pass
+
+    def soft_constraint_melodic_movement(self):
+        pass
+    
+    def soft_constraint_note_repetition(self):
+        pass
+    
+    def soft_constraint_parallel_movement(self):
+        pass
+    
+    def soft_constraint_voice_overlap(self):
+        pass
+    
+    def soft_constraint_chord_spacing(self):
+        pass
+    
+    def soft_constraint_distinct_notes(self):
+        pass
+    
+    def soft_constraint_voice_crossing(self):
+        pass
+    
+    def soft_constraint-voice_range(self):
+        pass
+                        
     def solve(self, log = True):
         sol = self.m.solve(log_output = log)
         print(sol.get_objective_values())       

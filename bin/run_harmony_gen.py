@@ -74,11 +74,15 @@ musical_corpus = []
 for i, title, meter, key, tonality, first_on_beat, melody in musical_work_df.itertuples():
     musical_corpus.append(MusicalWorkInput(title, meter, key, tonality, first_on_beat, [int(x) for x in melody.split(',')]))
 
+# Defining dictionary of hard and soft constraint options:
+hard_constraint_options = ['musical input', 'voice range', 'chord membership', 'first last chords',
+                           'adjacent bar chords', 'voice crossing', 'parallel movement']
+
+soft_constraint_options = ['chord progression', 'leap resolution',
+                           'melodic movement', 'note repetition', 'parallel movement', 'voice overlap',
+                           'chord spacing', 'distinct notes', 'voice crossing', 'voice range']
+
 # Model
 cp_model = CPModel("test", musical_corpus[0], chord_vocab)
-cp_model.define_decision_variables()
-cp_model.add_hard_constraints(cp_model.hard_constraint_musical_input(), cp_model.hard_constraint_voice_ranges(),
-                              cp_model.hard_constraint_chord_grades(),
-                              cp_model.hard_constraint_first_last_chords(), cp_model.hard_constraint_adjacent_bar_chords(),
-                              cp_model.hard_constraint_voice_crossing())
+
 solution = cp_model.solve()
