@@ -88,9 +88,11 @@ soft_constraint_options = ['chord progression', 'chord bass repetition', 'leap r
 # Model
 #cp_model = CPModel("test", musical_corpus[0], chord_vocab)
 
-print(musical_corpus[-1])
+print(musical_corpus[-1].title, musical_corpus[-1].key, musical_corpus[-1].tonality, 
+      musical_corpus[-1].first_on_beat,musical_corpus[-1].melody, musical_corpus[-1].reference_note)
 
-mp_model = MPModel("test", musical_corpus[-1], chord_vocab,
+#%%
+mp_model = MPModel("test", musical_corpus[0], chord_vocab,
                     #hard_constraints, 
                     #soft_constraints, 
                     file_progression_cost="chord_progression_major_v1.csv")

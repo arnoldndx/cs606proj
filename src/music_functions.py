@@ -15,7 +15,7 @@ def transpose(notes, n_semitones, mod = True, ascending = True):
             result %= 12
     return result
 
-def extend_range(notes, start_octave = -1, end_octave = 6):
+def extend_range(notes, start_octave = -3, end_octave = 4):
     result = []
     try:
         for note in notes:
