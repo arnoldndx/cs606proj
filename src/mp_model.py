@@ -21,7 +21,8 @@ class MPModel:
         
         #Initialising Model
         self.m = Model(name=self.name)
-        self.m.context.update_cplex_parameters({'randomseed': 606, 'mip.tolerances.mipgap': 0.002,'timelimit': 120})
+        self.m.context.update_cplex_parameters({'randomseed': 606, 'mip.tolerances.mipgap': 0.002,'timelimit': 300})
+        #self.m.context.update_cplex_parameters({'randomseed': 606, 'mip.tolerances.mipgap': 0.002,'timelimit': 120})
         #Decision Variables
         self.define_decision_variables()
         
@@ -151,8 +152,10 @@ class MPModel:
         for j in range(self.N):
             for i in range(3):
                 self.m.add_constraint(self.x[i,j] - self.x[i+1,j] <= max_spacing[i-1])
-    
-    def soft_constraint_chord_progression(self):
+                
+                
+#***************************************************************************************************************    
+    def soft_constraint_chord_progression(self, weight=1):
         cost0= self.m.continuous_var_list(self.N, 0,100, "Progression cost")
         length=len(self.chord_vocab)
                 
@@ -161,7 +164,7 @@ class MPModel:
                 for c2 in range(length):
                     self.m.add_constraint(cost0[j]>=self.m.logical_and(c1==self.c[j],c2==self.c[j+1])*self.chord_progression_costs[(c1,c2)]) 
         return cost0 
-    def soft_constraint_leap_resolution(self,max_leap=10): # leaps more than an interval of a major 6th should resolve in the opposite direction by stepwise motion(
+    def soft_constraint_leap_resolution(self,max_leap=10, weight=1): # leaps more than an interval of a major 6th should resolve in the opposite direction by stepwise motion(
         cost1= self.m.continuous_var_list(self.N, 0,100, "Leap resolution cost")
         for j in range(self.N-1):
             self.m.add_constraint(cost1[j]>=self.m.sum(1-(self.x[i,j] - self.x[i,j+1] <= max_leap) for i in range(1,4) ) )
@@ -175,7 +178,7 @@ class MPModel:
         pass
     
     
-    def soft_constraint_note_repetition(self, weight=1):
+    def soft_constraint_note_repetition(self, weight=2):
         cost3= self.m.continuous_var_list(self.N, 0,100, "Repetition cost")
         for j in range(self.N-2):
             self.m.add_constraint(cost3[j]>= weight *
@@ -186,16 +189,16 @@ class MPModel:
     def soft_constraint_parallel_movement(self):# is a hard constraint
         pass
     
-    def soft_constraint_voice_overlap(self):
+    def soft_constraint_voice_overlap(self,weight=1):
         cost4= self.m.continuous_var_list(self.N, 0,100, "voice crossing cost")
         for i in range(3):
             for j in range(self.N-1):
                 self.m.add_constraint(cost4[j]>= (self.x[i,j+1] <= self.x[i+1,j]-1))
         return cost4
-    def soft_constraint_chord_spacing(self):
+    def soft_constraint_chord_spacing(self, weight=1):
         pass
     
-    def soft_constraint_distinct_notes(self):#Chords with more distinct notes (i.e. max 3) are rewarded
+    def soft_constraint_distinct_notes(self,weight=1):#Chords with more distinct notes (i.e. max 3) are rewarded
         cost5= self.m.continuous_var_list(self.N, 0,100, "Distinct notes cost")
         for j in range(self.N):
             self.m.add_constraint(cost5[j]>=-1+
@@ -205,7 +208,7 @@ class MPModel:
     def soft_constraint_voice_crossing(self): # is a hard constraint
         pass
     
-    def soft_constraint_voice_range(self, slb = [24,17, 10], sub = [33,23 ,21]):
+    def soft_constraint_voice_range(self, slb = [24,17, 10], sub = [33,23 ,21],weight=1):
         cost6= self.m.continuous_var_list(self.N, 0,100, "voice range cost")
         
         
