@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 
 class MPModel:
     def __init__(self, model_name, musical_input, chord_vocab
-                 #, hard_constraints, soft_constraints
+                 #, hard_constraints
+                 , soft_constraint_w_weights
                  , file_progression_cost):
         self.name = model_name #string
         self.musical_input = musical_input #An instance of the class MusicalWorkInput
@@ -13,7 +14,7 @@ class MPModel:
         self.N = self.musical_input.melody_len
         self.K = self.musical_input.key
         #self.hard_constraints = hard_constraints #A dictionary with constraint names as key and boolean value on whether to include that constraint in the model or not
-        #self.soft_constraints = soft_constraints
+        self.soft_constraints_w_weights = soft_constraint_w_weights
         
         
         # cost parameters, weights
@@ -39,16 +40,16 @@ class MPModel:
                             }
 
         soft_constraints = {'chord progression': self.soft_constraint_chord_progression,
-                            #'chord bass repetition': self.soft_constraint_chord_bass_repetition,
+                            'chord bass repetition': self.soft_constraint_chord_bass_repetition,
                             'leap resolution': self.soft_constraint_leap_resolution,
-                            #'melodic movement': self.soft_constraint_melodic_movement,
+                            'melodic movement': self.soft_constraint_melodic_movement,
                             'note repetition': self.soft_constraint_note_repetition,
-                            #'parallel movement': self.soft_constraint_parallel_movement,
+                            'parallel movement': self.soft_constraint_parallel_movement,
                             'voice overlap': self.soft_constraint_voice_overlap,
-                            #'adjacent bar chords': self.soft_constraint_adjacent_bar_chords,
-                            #'chord spacing': self.soft_constraint_chord_spacing,
+                            'adjacent bar chords': self.soft_constraint_adjacent_bar_chords,
+                            'chord spacing': self.soft_constraint_chord_spacing,
                             'distinct notes': self.soft_constraint_distinct_notes,
-                            #'voice crossing': self.soft_constraint_voice_crossing,
+                            'voice crossing': self.soft_constraint_voice_crossing,
                             'voice range': self.soft_constraint_voice_range}
         #self.costs = {k: 0 for k in soft_constraints.keys()}
         # for k, v in self.hard_constraints.items():
@@ -62,15 +63,15 @@ class MPModel:
             hard_constraints[k]()
         counter=0
         self.costs=[]
-        for k in soft_constraints:
-               
-            self.costs.append(soft_constraints[k]())
-            counter+=1
-                
-       # print(self.costs)
+        for k,v in self.soft_constraints_w_weights.items():
+            if v>0 and k in soft_constraints:
+            # if weight input >0 the constraint is turned on  
+                self.costs.append(soft_constraints[k](weight=v))
+                counter+=1
+
         #Objective Function
         self.m.minimize(self.m.sum(self.costs[p][j] for p in range(counter) for j in range(self.N))  )
-        #self.m.minimize(self.m.sum(cost0[j]+cost1[j]+cost3[j]+cost4[j]+cost5[j] +cost6_1[j]+cost6_2[j] for j in range(self.N)))
+
     def define_decision_variables(self):
         arr = [(i,j) for i in range(4) for j in range(self.N)]
         #i = 0 refers to soprano, 1 refers to alto, 2 refers to tenor, 3 refers to bass

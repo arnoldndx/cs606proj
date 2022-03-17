@@ -85,6 +85,11 @@ soft_constraint_options = ['chord progression', 'chord bass repetition', 'leap r
                            'melodic movement', 'note repetition', 'parallel movement', 'voice overlap', 'adjacent bar chords',
                            'chord spacing', 'distinct notes', 'voice crossing', 'voice range']
 
+# Defining dictionary of weights for each soft constraint options:
+weight_df = pd.read_csv("../data/soft_constraint_weights.csv")
+soft_constraint_w_weights={}
+for _,name, w in weight_df.itertuples(): #name population is same as soft_constraint_options
+    soft_constraint_w_weights[name]=float(w)
 # Model
 #cp_model = CPModel("test", musical_corpus[0], chord_vocab)
 
@@ -94,7 +99,7 @@ print(musical_corpus[-1].title, musical_corpus[-1].key, musical_corpus[-1].tonal
 #%%
 mp_model = MPModel("test", musical_corpus[0], chord_vocab,
                     #hard_constraints, 
-                    #soft_constraints, 
+                    soft_constraint_w_weights, 
                     file_progression_cost="chord_progression_major_v1.csv")
 solution = mp_model.solve()
 #solution = cp_model.solve()
