@@ -10,7 +10,8 @@ Create environment from environment file (to be created)
 ## Usage
 
 ```
-usage: run_harmony_gen.py [-h] [--method {'mp', 'cp', 'ga', 'alns'}] [--file FILE] [--weights {'defined', 'trained'}] [--input FILEPATH]
+usage: run_harmony_gen.py [-h] [--method {'mp', 'cp', 'ga', 'alns'}] [--file FILE] [--weights {'defined', 'trained'}] 
+                          [--input FILEPATH]
 
 Optional arguments (all have defaults):
   -h, --help            show this help message and exit
