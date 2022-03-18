@@ -49,12 +49,12 @@ SOFT CONSTRAINTS
 
 '''
 #Standard Imports
-
 import os
 import sys
 import pandas as pd
 # from collections import defaultdict
 import timeit
+import argparse
 from docplex.cp.model import CpoModel
 
 #Custom Imports
@@ -64,14 +64,30 @@ from src.musical_work_input import MusicalWorkInput
 #from src.cp_model import CPModel
 from src.mp_model import MPModel
 from src.midi_processing import *
+from src.train_weights import *
 
+# Setting up arguments
+parser.add_argument('--method', type = str, default = 'mp', choices=['mp', 'cp', 'ga', 'alns'])
+parser.add_argument("--file", type = str, default = 'harmony_gen', help = "Filename prefix. "
+                                                                         "You should give a meaningful name for easy tracking.")
+parser.add_argument('--weights', type = str, default = 'defined', choices=['defined', 'trained'])
+parser.add_argument('--training_data', type = str, default = 'bach', help = 'Filepath for training data. Folder containing midi files should be inside ../data/')
+parser.add_argument('--input', type = str, default = '../data/sample_input.csv', help = "Filepath for the input melody. Valid filetypes: .csv, .mid")
+
+# Starting up
+args = parser.parse_args()
+logger.info(f'==============================================')
+logger.info('Importing melody')
 
 # Importing Musical Corpus
-musical_work_df = pd.read_csv("../data/sample_input.csv")
-musical_corpus = []
-for i, title, meter, key, tonality, first_on_beat, melody in musical_work_df.itertuples():
-    musical_corpus.append(MusicalWorkInput(title, meter, key, tonality, first_on_beat, [int(x) for x in melody.split(',')]))
-
+if args.input[-3:] == 'csv':
+    musical_work_df = pd.read_csv(args.input)
+    musical_corpus = []
+    for i, title, meter, key, tonality, first_on_beat, melody in musical_work_df.itertuples():
+        musical_corpus.append(MusicalWorkInput(title, meter, key, tonality, first_on_beat, [int(x) for x in melody.split(',')]))
+elif args.input[-3:] == 'mid':
+    musical_work_df = midi_to_array(args.input)
+    
 # Defining dictionary of hard and soft constraint options:
 hard_constraint_options = ['musical input', 'voice range', 'chord membership', 'first last chords',
                            'chord bass repetition', 'adjacent bar chords', 'voice crossing', 'parallel movement',
@@ -81,36 +97,52 @@ soft_constraint_options = ['chord progression', 'chord bass repetition', 'leap r
                            'melodic movement', 'note repetition', 'parallel movement', 'voice overlap', 'adjacent bar chords',
                            'chord spacing', 'distinct notes', 'voice crossing', 'voice range']
 
+logger.info(f'==============================================')
+logger.info(f'Preparing weights for soft constraints')
+# define weights
+if args.weights == 'defined':
+    weight_df = pd.read_csv("../data/soft_constraint_weights.csv")
+elif args.weights == 'trained':
+    weight_df = train_weights()    
 
-# Model
-#cp_model = CPModel("test", musical_corpus[0], chord_vocab)
-music=musical_corpus[1]
-print(music.title, music.key, music.tonality, 
-      music.first_on_beat,music.melody, music.reference_note)
-# Importing Chord Vocabulary
-if music.tonality=="major":
-    chord_df = pd.read_csv("../data/chord_vocabulary_major.csv", index_col = 0)
-else:
-    chord_df = pd.read_csv("../data/chord_vocabulary_minor.csv", index_col = 0)
-chord_vocab = []
-for name, note_intervals in chord_df.itertuples():
-    chord_vocab.append(Chord(name, set(int(x) for x in note_intervals.split(','))))
+logger.info(f'==============================================')
+logger.info(f'Generating Harmony')
+if args.method == 'mp':
+    # Model
+    #cp_model = CPModel("test", musical_corpus[0], chord_vocab)
+    music=musical_corpus[1]
+    print(music.title, music.key, music.tonality, 
+          music.first_on_beat,music.melody, music.reference_note)
+    # Importing Chord Vocabulary
+    if music.tonality=="major":
+        chord_df = pd.read_csv("../data/chord_vocabulary_major.csv", index_col = 0)
+    else:
+        chord_df = pd.read_csv("../data/chord_vocabulary_minor.csv", index_col = 0)
+    chord_vocab = []
+    for name, note_intervals in chord_df.itertuples():
+        chord_vocab.append(Chord(name, set(int(x) for x in note_intervals.split(','))))
+        
+    # SHOULD SET AN ARGUMENT FOR WEIGHTS SETTING, EITHER READ FROM DICTIONARY OR GET FROM GRADIENT DESCENT
+    # Defining dictionary of weights for each soft constraint options:
+    soft_constraint_w_weights={}
+    for _,name, w in weight_df.itertuples(): #name population is same as soft_constraint_options
+        soft_constraint_w_weights[name]=float(w)
+    file_progression_cost="chord_progression_major_v1.csv" if music.tonality=="major" else "chord_progression_minor_v1.csv"
+    # Model
+    mp_model = MPModel("test", music, chord_vocab,
+                        #hard_constraints, 
+                        soft_constraint_w_weights, 
+                        file_progression_cost=file_progression_cost)
+    solution = mp_model.solve()
     
-# Defining dictionary of weights for each soft constraint options:
-weight_df = pd.read_csv("../data/soft_constraint_weights.csv")
-soft_constraint_w_weights={}
-for _,name, w in weight_df.itertuples(): #name population is same as soft_constraint_options
-    soft_constraint_w_weights[name]=float(w)
-file_progression_cost="chord_progression_major_v1.csv" if music.tonality=="major" else "chord_progression_minor_v1.csv"
-# Model
-mp_model = MPModel("test", music, chord_vocab,
-                    #hard_constraints, 
-                    soft_constraint_w_weights, 
-                    file_progression_cost=file_progression_cost)
-solution = mp_model.solve()
+    # ======= STANDARDISE THE SOLUTION OUTPUTS ========
+    # extract solution harmony in a midi_array
+    
+    # extract the solve time
 
 # generate the solution as a midi file
-
+logger.info(f'==============================================')
+logger.info(f'Output melody written to: {results_path}')
 
 #%%
 # for music in musical_corpus:
