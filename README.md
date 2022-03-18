@@ -5,7 +5,7 @@ Generating Four-Part Harmony (Using Constraint Programming and Evolutionary Tech
 
 Create environment from environment file (to be created)
 
-`conda env create -f cs606proj.yml`
+`conda env create -f cs606_env.yaml`
 
 ## Usage
 
