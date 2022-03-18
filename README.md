@@ -9,7 +9,18 @@ Create environment from environment file (to be created)
 
 ## Usage
 
-List the options for the driver script
+```
+usage: run_harmony_gen.py [-h] [--method {'mp', 'cp', 'ga', 'alns'}] [--file FILE] [--weights {'defined', 'trained'}] [--input FILEPATH]
+
+Optional arguments (all have defaults):
+  -h, --help            show this help message and exit
+  --method {'mp', 'cp', 'ga', 'alns'}    
+                        Choice of harmony generation method
+  --file FILE           Filename prefix. You should give a meaningful name for easy tracking.
+  --weights {'defined', 'trained'}
+                        Choice of whether to use train weights against a body of work or to use a pre-defined set in csv
+  --input FILEPATH      Filepath of input melody
+```
 
 ### Examples
 
