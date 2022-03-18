@@ -1,4 +1,4 @@
-# CS606 Project
+# CS606: AI Planning & Decision Making Project (Group 3)
 Generating Four-Part Harmony (Using Constraint Programming and Evolutionary Techniques)
 
 ## Getting Started
