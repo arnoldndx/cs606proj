@@ -118,11 +118,11 @@ class MPModel:
             for chord in self.chord_vocab:
                 if chord.name == "i":
                     n = chord.index
-                    n1.append = chord.index
+                    n1.append (chord.index)
                 elif chord.name == "I":
-                    n1.append = chord.index
+                    n1.append (chord.index)
             self.m.add_constraint(self.c[0] == n)
-            self.m.add_constraint(self.c[self.N-1].set_domain(n1))
+            self.m.add_constraint(self.c[self.N-1]<=max(n1))
         
         
         

@@ -64,11 +64,6 @@ from src.musical_work_input import MusicalWorkInput
 #from src.cp_model import CPModel
 from src.mp_model import MPModel
 
-# Importing Chord Vocabulary
-chord_df = pd.read_csv("../data/chord_vocabulary_major.csv", index_col = 0)
-chord_vocab = []
-for name, note_intervals in chord_df.itertuples():
-    chord_vocab.append(Chord(name, set(int(x) for x in note_intervals.split(','))))
 
 # Importing Musical Corpus
 musical_work_df = pd.read_csv("../data/sample_input.csv")
@@ -85,21 +80,57 @@ soft_constraint_options = ['chord progression', 'chord bass repetition', 'leap r
                            'melodic movement', 'note repetition', 'parallel movement', 'voice overlap', 'adjacent bar chords',
                            'chord spacing', 'distinct notes', 'voice crossing', 'voice range']
 
+
+# Model
+#cp_model = CPModel("test", musical_corpus[0], chord_vocab)
+music=musical_corpus[1]
+print(music.title, music.key, music.tonality, 
+      music.first_on_beat,music.melody, music.reference_note)
+# Importing Chord Vocabulary
+if music.tonality=="major":
+    chord_df = pd.read_csv("../data/chord_vocabulary_major.csv", index_col = 0)
+else:
+    chord_df = pd.read_csv("../data/chord_vocabulary_minor.csv", index_col = 0)
+chord_vocab = []
+for name, note_intervals in chord_df.itertuples():
+    chord_vocab.append(Chord(name, set(int(x) for x in note_intervals.split(','))))
+    
 # Defining dictionary of weights for each soft constraint options:
 weight_df = pd.read_csv("../data/soft_constraint_weights.csv")
 soft_constraint_w_weights={}
 for _,name, w in weight_df.itertuples(): #name population is same as soft_constraint_options
     soft_constraint_w_weights[name]=float(w)
+file_progression_cost="chord_progression_major_v1.csv" if music.tonality=="major" else "chord_progression_minor_v1.csv"
 # Model
-#cp_model = CPModel("test", musical_corpus[0], chord_vocab)
-
-print(musical_corpus[-1].title, musical_corpus[-1].key, musical_corpus[-1].tonality, 
-      musical_corpus[-1].first_on_beat,musical_corpus[-1].melody, musical_corpus[-1].reference_note)
-
-#%%
-mp_model = MPModel("test", musical_corpus[0], chord_vocab,
+mp_model = MPModel("test", music, chord_vocab,
                     #hard_constraints, 
                     soft_constraint_w_weights, 
-                    file_progression_cost="chord_progression_major_v1.csv")
+                    file_progression_cost=file_progression_cost)
 solution = mp_model.solve()
-#solution = cp_model.solve()
+
+
+#%%
+# for music in musical_corpus:
+#     print(music.title, music.key, music.tonality, 
+#           music.first_on_beat,music.melody, music.reference_note)
+# # Importing Chord Vocabulary
+#     if music.tonality=="major":
+#         chord_df = pd.read_csv("../data/chord_vocabulary_major.csv", index_col = 0)
+#     else:
+#         chord_df = pd.read_csv("../data/chord_vocabulary_minor.csv", index_col = 0)
+#     chord_vocab = []
+#     for name, note_intervals in chord_df.itertuples():
+#         chord_vocab.append(Chord(name, set(int(x) for x in note_intervals.split(','))))
+        
+#     # Defining dictionary of weights for each soft constraint options:
+#     weight_df = pd.read_csv("../data/soft_constraint_weights.csv")
+#     soft_constraint_w_weights={}
+#     for _,name, w in weight_df.itertuples(): #name population is same as soft_constraint_options
+#         soft_constraint_w_weights[name]=float(w)
+#     file_progression_cost="chord_progression_major_v1.csv" if music.tonality=="major" else "chord_progression_minor_v1.csv"
+#     # Model
+#     mp_model = MPModel("test", music, chord_vocab,
+#                         #hard_constraints, 
+#                         soft_constraint_w_weights, 
+#                         file_progression_cost=file_progression_cost)
+#     solution = mp_model.solve()
