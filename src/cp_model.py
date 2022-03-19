@@ -2,10 +2,11 @@ from docplex.cp.model import CpoModel
 import src.music_functions
 
 class CPModel:
-    def __init__(self, model_name, musical_input, chord_vocab, hard_constraints, soft_constraints):
+    def __init__(self, model_name, musical_input, chord_vocab, penalties, hard_constraints, soft_constraints):
         self.name = model_name #string
         self.musical_input = musical_input #An instance of the class MusicalWorkInput
         self.chord_vocab = chord_vocab #A list of objects, each of the class Chord
+        self.penalties = penalities #A dictionary of dictionaries, with constraint name as the key and dictionary of penalties as value
         self.N = self.musical_input.melody_len
         self.K = self.musical_input.key
         self.hard_constraints = hard_constraints #A dictionary with constraint names as key and boolean value on whether to include that constraint in the model or not
@@ -125,6 +126,7 @@ class CPModel:
                 self.m.add(self.x[i,j] - self.x[i+1,j] <= max_spacing[i])
     
     def soft_constraint_chord_progression(self):
+        d = penalties['chord progression']
         pass
     
     def soft_constraint_leap_resolution(self):
