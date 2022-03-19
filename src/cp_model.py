@@ -2,16 +2,16 @@ from docplex.cp.model import CpoModel
 import src.music_functions
 
 class CPModel:
-    def __init__(self, model_name, musical_input, chord_vocab, penalties, hard_constraints, soft_constraints):
+    def __init__(self, model_name, musical_input, chord_vocab, chord_progression_penalties, hard_constraints, soft_constraints_weights):
         self.name = model_name #string
         self.musical_input = musical_input #An instance of the class MusicalWorkInput
         self.chord_vocab = chord_vocab #A list of objects, each of the class Chord
-        self.penalties = penalities #A dictionary of dictionaries, with constraint name as the key and dictionary of penalties as value
+        self.chord_progression_penalties = chord_progression_penalties #A dictionary of (chord1 name, chord2 name) as the key and penalty as value
         self.N = self.musical_input.melody_len
         self.K = self.musical_input.key
         self.hard_constraints = hard_constraints #A dictionary with constraint names as key and boolean value on whether to include that constraint in the model or not
-        self.soft_constraints = soft_constraints
-        self.costs = {k: 0 for k in soft_constraints.keys()}
+        self.soft_constraints_weights = soft_constraints_weights
+        self.costs = {k: 0 for k in soft_constraints_weights.keys()}
         
         #Initialising Model
         self.m = CpoModel(name=self.name)
@@ -45,18 +45,20 @@ class CPModel:
         for k, v in self.hard_constraints.items():
             if v:
                 hard_constraints[k]()
-        for k, v in self.soft_constraints.items():
-            if v:
-                self.costs[k] = soft_constraints[k]()
+        for k, v in self.soft_constraints_weights.items():
+            if v > 0:
+                soft_constraints[k]()
         
         #Objective Function
-        self.m.minimize(m.sum(self.costs))
+        self.m.minimize(sum(sum(self.m.sum(i) for i in v) for v in self.costs.values() if v != 0))
         
     def define_decision_variables(self):
         arr = [(i,j) for i in range(4) for j in range(self.N)]
         #i = 0 refers to soprano, 1 refers to alto, 2 refers to tenor, 3 refers to bass
         self.x = self.m.integer_var_dict(arr, name = "Notes")
         self.c = self.m.integer_var_list(self.N, min = 0, max = len(self.chord_vocab) - 1, name = "Chords")
+        for k, v in self.soft_constraints_weights.items():
+            self.costs[k] = self.m.integer_var_dict(arr, min = 0, name = k)
 
     def hard_constraint_musical_input(self):
         for j in range(self.N):
@@ -100,7 +102,7 @@ class CPModel:
     
     def hard_constraint_chord_bass_repetition(self):
         for j in range(self.N-1):
-            self.m.add(self.m.if_then(self.c[j] == self.c[j+1], self.x[3,j] != self.x[3,j+1]
+            self.m.add(self.m.if_then(self.c[j] == self.c[j+1], self.x[3,j] != self.x[3,j+1]))
     
     def hard_constraint_adjacent_bar_chords(self):
         for j in range(1,self.N):
@@ -112,13 +114,16 @@ class CPModel:
             for j in range(self.N):
                 self.m.add(self.x[i,j] >= self.x[i+1,j])
     
-    def hard_constraint_parallel_movement(self, disallowed_intervals = [7, 12]):
+    def hard_constraint_parallel_movement(self, disallowed_intervals = [0, 7]):
         for j in range(self.N-1):
             for i1 in range(4):
                 for i2 in range(4):
-                    for interval in disallowed_intervals:
-                        self.m.add(self.m.if_then(self.m.logical_and(x[i1,j] >= x[i2,j], (x[i1,j] - x[i2,j])%12 == interval),
-                                                  (x[i1,j+1] - x[i2,j+1])%12 != interval))
+                    if i2 != i1:
+                        for interval in disallowed_intervals:
+                            self.m.add(self.m.if_then(self.m.logical_and(
+                                self.m.logical_and(self.x[i1,j] >= self.x[i2,j], self.x[i1,j+1] >= self.x[i2,j+1]),
+                                (self.x[i1,j] - self.x[i2,j])%12 == interval),
+                                                      (self.x[i1,j+1] - self.x[i2,j+1])%12 != interval))
 
     def hard_constraint_chord_spacing(self, max_spacing = [12, 12, 16]):
         for j in range(self.N):
@@ -126,8 +131,19 @@ class CPModel:
                 self.m.add(self.x[i,j] - self.x[i+1,j] <= max_spacing[i])
     
     def soft_constraint_chord_progression(self):
-        d = penalties['chord progression']
-        pass
+        d = self.chord_progression_penalties
+        w = self.soft_constraints_weights['chord progression']
+        for j in range(self.N-1):
+            for chord1 in self.chord_vocab:
+                for chord2 in self.chord_vocab:
+                    self.m.add(self.m.if_then(self.m.logical_and(self.c[j] == chord1.index, self.c[j+1] == chord2.index),
+                                              self.costs['chord progression'][0,j] >= d[chord1.name, chord2.name] * w))
+
+    def soft_constraint_chord_bass_repetition(self):
+        for j in range(self.N-1):
+            self.m.add(self.m.if_then(self.m.logical_and(self.c[j] == self.c[j+1], self.x[3,j] == self.x[3,j+1]),
+                                      self.costs['chord bass repetition'][3,j] >= self.soft_constraints_weights['chord bass repetition']))
+        
     
     def soft_constraint_leap_resolution(self):
         pass
@@ -136,12 +152,31 @@ class CPModel:
         pass
     
     def soft_constraint_note_repetition(self):
-        pass
+        for j in range(self.N-2):
+            for i in range(4):
+                self.m.add(self.m.if_then(self.m.logical_and(self.x[i,j] == self.x[i,j+1], self.x[i,j+1] == self.x[i,j+2]),
+                                          self.costs['note repetition'][i,j] >= self.soft_constraints_weights['note repetition']))
     
-    def soft_constraint_parallel_movement(self):
-        pass
+    def soft_constraint_parallel_movement(self, discouraged_intervals = [0, 7]):
+        for j in range(self.N-1):
+            for i1 in range(4):
+                for i2 in range(4):
+                    for interval in discouraged_intervals:
+                        self.m.add(self.m.if_then(self.m.logical_and(
+                            self.m.logical_and(self.x[i1,j] >= self.x[i2,j], self.x[i1,j+1] >= self.x[i2,j+1]),
+                            self.m.logical_and((self.x[i1,j] - self.x[i2,j])%12 == interval,
+                            (self.x[i1,j+1] - self.x[i2,j+1])%12 == interval)),
+                                   self.costs['parallel movement'][i1,j] >= self.soft_constraints_weights['parallel movement']))
     
     def soft_constraint_voice_overlap(self):
+        for j in range(self.N-1):
+            for i1 in range(4):
+                for i2 in range(4):
+                    if i2 - i1 == 1:
+                        self.m.add(self.m.if_then(self.m.logical_and(self.x[i1,j] > self.x[i2,j], self.x[i2,j+1] > self.x[i1,j]),
+                                                  self.costs['voice overlap'][i1,j] >= self.soft_constraints_weights['voice overlap']))
+    
+    def soft_constraint_adjacent_bar_chords(self):
         pass
     
     def soft_constraint_chord_spacing(self):
