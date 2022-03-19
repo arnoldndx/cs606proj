@@ -148,8 +148,12 @@ class CPModel:
     def soft_constraint_leap_resolution(self):
         pass
 
-    def soft_constraint_melodic_movement(self):
-        pass
+    def soft_constraint_melodic_movement(self, leap_interval = {1: 12, 2: 12, 3: 16}):
+        for j in range(self.N-1):
+            for i in range(1,4):
+                self.m.add(self.m.if_then(self.m.logical_or((self.x[i,j+1] - self.x[i,j]) > leap_interval[i],
+                                          (self.x[i,j] - self.x[i,j+1]) > leap_interval[i]),
+                                          self.costs['melodic movement'][i,j] >= self.soft_constraints_weights['melodic movement']))
     
     def soft_constraint_note_repetition(self):
         for j in range(self.N-2):
