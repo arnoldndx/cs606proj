@@ -133,7 +133,7 @@ if args.method == 'mp':
                         #hard_constraints, 
                         soft_constraint_w_weights, 
                         file_progression_cost=file_progression_cost)
-    solution = mp_model.solve()
+    solution, midi_array = mp_model.solve()
     
     # ======= STANDARDISE THE SOLUTION OUTPUTS ========
     # extract solution harmony in a midi_array
@@ -143,6 +143,8 @@ if args.method == 'mp':
 # generate the solution as a midi file
 logger.info(f'==============================================')
 logger.info(f'Output melody written to: {results_path}')
+# generate the solution as a midi file
+array_to_midi(midi_array, [53]*4, 500)
 
 #%%
 # for music in musical_corpus:
