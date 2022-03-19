@@ -103,9 +103,7 @@ class MPModel:
                     self.m.add_constraint((self.c[j] == chord.index) <= self.m.sum((self.x[i,j]-offset==chord_ext[p]) for p in range(length) ))
                     #self.m.add(self.m.if_then(self.m.logical_and(self.c[j] == chord.index, self.x[i,j] == note), note in chord_ext))
     
-    def hard_constraint_first_last_chords(self): # what is the logic in CP model?
-
-        
+    def hard_constraint_first_last_chords(self): # what is the logic in CP model?       
         if self.musical_input.tonality == "major":
             for chord in self.chord_vocab:
                 if chord.name == "I":
@@ -240,9 +238,18 @@ class MPModel:
         # plt.legend()
         # plt.show()   
         
+        # return the midi array for conversion
+        midi_array = [[]]
+        for _ in range(3):
+            midi_array.append([])
         
-        print(sol)
-        return sol
+        sol_dict = sol.get_value_dict(self.x)
+        
+        for i, j in self.x.keys():
+            midi_array[i].append(round(sol_dict[(i,j)]))
+            
+        
+        return sol, midi_array
         
         
     #

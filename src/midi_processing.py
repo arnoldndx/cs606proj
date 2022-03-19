@@ -9,16 +9,27 @@ Dummy code to define classes and functions from the assignment 2 script. Start w
 '''
 import os
 import sys
+import copy
+from itertools import groupby
 
 import pretty_midi
-import pandas as pd
 
-base_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+def all_equal(iterable):
+    '''
+    Utility function to check that all items in list are the same. For checking array lengths for each voice.
+    
+    Parameters
+    ----------
+    iterable : list
+        List of the lengths of each voice (i.e. list of notes).
 
-fn = os.path.join(base_path, 'data', 'Bach Chorales', '01AusmeinesHerz.mid')
-midi_data = pretty_midi.PrettyMIDI(fn)
-midi_list = []
+    Returns
+    -------
+        True if all lengths are the same, False otherwise
 
+    '''
+    g = groupby(iterable)
+    return next(g, True) and not next(g, False)
 
 def midi_to_array(midi_file):
     '''
@@ -36,24 +47,53 @@ def midi_to_array(midi_file):
 
     '''
     midi_data = pretty_midi.PrettyMIDI(midi_file)
-    midi_list = []
+    interval_list = []
+    notes_list = []
+    instruments =[]
     
     for instrument in midi_data.instruments:
+        instruments.append(instrument.program)
+        notes = []
+        intervals = []
         for note in instrument.notes:
-            start = note.start
-            end = note.end
+            interval = round((note.end - note.start) * 1000) # calculate the interval for standardisation (int in ms)
             pitch = note.pitch
-            velocity = note.velocity
-            midi_list.append([start, end, pitch, velocity, instrument.name])
-            
-    midi_list = sorted(midi_list, key=lambda x: (x[0], x[2]))
+            intervals.append(interval)
+            notes.append(pitch)
+        
+        # add the voice to the notes_list array
+        notes_list.append(notes)
+        
+        # add the voice to the notes_list array
+        interval_list.append(intervals)
+                
+    # find minimum interval
+    min_interval = min(min(interval_list[i]) for i in range(4))
     
-    # generate array by comparing the timings and standardising the beat
-    midi_array = midi_list
+    # create midi_array as an array of notes with a constant beat
+    midi_array = []
     
-    #df = pd.DataFrame(midi_list, columns=['Start', 'End', 'Pitch', 'Velocity', 'Instrument'])
-
-    return midi_array
+    for i in range(len(notes_list)):
+        k = 0
+        voice = []
+        for j in range(len(notes_list[i])):
+            length = interval_list[i][j] // min_interval
+            for l in range(length):
+                k += 1
+                voice.append(notes_list[i][j])
+        
+        # add voice to midi array
+        midi_array.append(voice)
+    
+    # check that all voices have same length
+    lengths = []
+    for voice in midi_array:
+        lengths.append(len(voice))
+    
+    if not all_equal(lengths):
+        raise Exception('Error in array output, not all voices have same length')
+        
+    return midi_array, min_interval
 
 def array_to_midi(midi_array, instruments, beat, dest_file_path = '../outputs/model_output.mid'):
     '''
@@ -61,7 +101,7 @@ def array_to_midi(midi_array, instruments, beat, dest_file_path = '../outputs/mo
 
     Parameters
     ----------
-    midi_array : list of int (0-127)
+    midi_array : nested list of int (0-127)
         Array of notes (int) standardised to a constant beat. Find the note numbers mapped at: https://www.music.mcgill.ca/~ich/classes/mumt306/StandardMIDIfileformat.html#BMA1_3
         
     instruments : list of int (0-127)
@@ -83,19 +123,23 @@ def array_to_midi(midi_array, instruments, beat, dest_file_path = '../outputs/mo
         raise Exception('Error, length of instrument array should be 4')
     
     # Create a PrettyMIDI object to store the compiled music, tempo in bpm converted from beat
-    midi_output = pretty_midi.PrettyMIDI(tempo = 60000/beat)
+    midi_output = pretty_midi.PrettyMIDI(initial_tempo = round(60000/beat))
         
         
     for i in range(len(midi_array)):
         # Create a PrettyMIDI instrument with chosen instrument
         instrument = pretty_midi.Instrument(program=instruments[i])
+        # restart the note interval
+        time = 0
         # Iterate over note names, which will be converted to note number later
         for note_number in midi_array[i]:
             # Create a Note instance, starting at 0 and ending at 1 beat (in s)
             note = pretty_midi.Note(
-                velocity=100, pitch=note_number, start=0, end=beat*1000)
+                velocity=100, pitch=note_number, start = time, end = time + beat/1000)
             # Add it to our cello instrument
             instrument.notes.append(note)
+            # extend the time
+            time += beat/1000
         # Add the instrument to the PrettyMIDI object
         midi_output.instruments.append(instrument)
         
