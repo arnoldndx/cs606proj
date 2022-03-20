@@ -287,14 +287,15 @@ def array_to_midi(midi_array, instruments, beat, dest_file_path = '../outputs/mo
             else:
                 # Create a Note instance, starting at 0 and ending at 1 beat (in s)
                 note = pretty_midi.Note(
-                    velocity=127, pitch = note_number, start = time, end = time + beat/1000)
+                    velocity=127, pitch = note_number + 36, start = time, end = time + beat/1000)
             # Add it to our cello instrument
             instrument.notes.append(note)
             # extend the time
             time += beat/1000
         # Add the instrument to the PrettyMIDI object
         midi_output.instruments.append(instrument)
-        
+     
+    
     # Write out the MIDI data
     midi_output.write(dest_file_path)
     
