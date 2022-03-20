@@ -41,6 +41,7 @@ def test_function(midi_file):
     print('note starts (in ms): ',[[round(note.start * 1000) for note in instrument.notes] for instrument in midi_data.instruments])
     print('note starts (in beats): ',[[round(note.start/round(60/midi_data.get_tempo_changes()[1][0],3),4) for note in instrument.notes] for instrument in midi_data.instruments])
     return
+
 def midi_to_array(midi_file):
     '''
     Function to convert midi file to array for processing.
@@ -64,183 +65,70 @@ def midi_to_array(midi_file):
     if len(midi_data.get_tempo_changes()[0]) > 1:
         raise Exception(f'There are tempo changes in {midi_file}, do not use')
     
-    # convert the tempo into a time interval (ms)
-    tempo_interval = round(60000/midi_data.get_tempo_changes()[1][0])
-    
-    smallest_beat = 1
-    
-    # check if any note is ending or starting on a sub-beat
-    for instrument in midi_data.instruments:
-        for note in instrument.notes:
-            sub_beat = 2 ** round(np.log2(round(round(note.start * 1000) / tempo_interval, 3) % 1, 3)) # sub_beat should be in powers of 2
-            # check if the note is starting on a beat location
-            if  sub_beat > 0:
-                smallest_beat = sub_beat
-    
+    # convert the tempo into a time interval (s)
+    tempo_interval = 60/midi_data.get_tempo_changes()[1][0]
+   
     # create a set of timesteps
-    time_steps = [min(min(starts) for starts in start_list)]
-    end = min(min(starts) for starts in start_list)
-    while end < max(max(ends) for ends in end_list):
-        end += min_interval
-        time_steps.append(end)
-    # print('max end:', max(max(ends) for ends in end_list))
-    # print('time_steps: ', time_steps)
-    # print('min_interval: ', min_interval)
-    # print('intervals//min: ', [sum(intervals)//min_interval for intervals in interval_list])
-    # print('sum of intervals in each bar: ', [sum([round(intv/min_interval) for intv in intervals]) for intervals in interval_list])
-    # print('remainder of division mod min_interval: ', [[round(intv%min_interval/min_interval) for intv in intervals] for intervals in interval_list])
+    time_steps = [round(x,3) for x in midi_data.get_beats()]
+    
+    # pad the beats to the end of the song
+    while time_steps[-1] <= midi_data.get_end_time():    
+        time_steps.append(round(time_steps[-1] + tempo_interval,3))
     
     
     # create midi_array as an array of notes with a constant beat
     midi_array = []
     
-    for i in range(len(notes_list)):
-        k = 1
-        voice = []
-        # for j in range(len(notes_list[i])):
-        #     length = round(interval_list[i][j] / min_interval)
-        #     for l in range(length):
-        #         k += 1
-        #         voice.append(notes_list[i][j])
-        for j in range(len(notes_list[i])):
-            print('start of note: ', start_list[i][j])
-            print('end of note: ', end_list[i][j])
-            print('end of time_step: ', time_steps[k])
-            print('gap from end of note to end of timestep: ', (end_list[i][j] - time_steps[k]) / min_interval)
-            # check that the note has started within this timestep
-            while (end_list[i][j] - time_steps[k]) / min_interval < 0.1: # i.e. while the note hasn't ended
-                print('start of time_step: ', time_steps[k-1])
-                if (start_list[i][j] - time_steps[k-1]) / min_interval < 0.1: # i.e. the note started within range of the end of the previous timestep
-                    voice.append(notes_list[i][j])
-                    k += 1
-                else: # i.e. note has not started yet
-                    voice.append(None) # append a pause
-                    k += 1
-        # print(voice)
+    for instrument in midi_data.instruments:
+        # voice should have a length corresponding to the number of beat locations
+        voice = [None] * len(time_steps)
+        
+        ''' for troubleshooting
+        # notes_check = []
+        '''
+        for note in instrument.notes:
+            '''for troubleshooting
+            # notes_check.append([round(note.start,3),round(note.end,3),note.pitch-36])
+            '''
+            # check if the start of the note corresponds to a beat location
+            if round(note.start,3) in time_steps:
+                idx = time_steps.index(round(note.start,3))
+                while time_steps[idx] < round(note.end,3):
+                    voice[idx] = note.pitch - 36 # transpose to mid C = 24
+                    idx += 1
+            # note may not start on a timestep, but may last longer than a beat
+            elif (note.end - note.start) >= tempo_interval:
+                # print('this note starts mid-beat: ',(note.start,note.end,note.pitch-36))
+                idx = time_steps.index(round(note.start,3) - round(tempo_interval/2,3))
+                while time_steps[idx] < round(note.end,3):
+                    voice[idx] = note.pitch - 36 # transpose to mid C = 24
+                    idx += 1
+        
+        ''' for troubleshooting
+        print('check the notes: ',notes_check)
+        capture_check = []
+        for i in range(len(time_steps)):
+            capture_check.append((time_steps[i],voice[i]))
+        print('check what got captured: ', capture_check)
+        '''
+        
         # add voice to midi array
         midi_array.append(voice)
-    
-    # print(midi_array)
     
     # check that all voices have same length
     lengths = []
     for voice in midi_array:
         lengths.append(len(voice))
         
-    print('length of each voice: ',lengths)
+    # print('length of each voice: ',lengths)
     
     if not all_equal(lengths):
         raise Exception('Error in array output, not all voices have same length')
     
     # print(midi_array, min_interval)
     
-    return midi_array, min_interval
+    return midi_array, tempo_interval
 
-# def midi_to_array(midi_file):
-#     '''
-#     Function to convert midi file to array for processing.
-    
-#     Parameters
-#     ----------
-#     midi_file : str
-#         File path of the midi file
-
-#     Returns
-#     -------
-#     midi_array : list
-#         Array of notes (int) standardised to a constant beat
-
-#     '''
-#     midi_data = pretty_midi.PrettyMIDI(midi_file)
-#     interval_list = []
-#     start_list = []
-#     end_list = []
-#     notes_list = []
-#     instruments =[]
-    
-#     for instrument in midi_data.instruments:
-#         instruments.append(instrument.program)
-#         notes = []
-#         intervals = []
-#         starts = []
-#         ends = []
-#         for note in instrument.notes:
-#             interval = round((note.end - note.start) * 1000) # calculate the interval for standardisation (int in ms)
-#             intervals.append(interval)
-#             starts.append(round(note.start * 1000))
-#             ends.append(round(note.end * 1000))
-#             notes.append(note.pitch)
-        
-#         start_list.append(starts)
-#         end_list.append(ends)
-            
-#         # add the voice to the notes_list array
-#         notes_list.append(notes)
-        
-#         # add the voice to the notes_list array
-#         interval_list.append(intervals)
-           
-#     # find minimum interval
-#     min_interval = min(min(interval_list[i]) for i in range(4))
-    
-#     # create a set of timesteps
-#     time_steps = [min(min(starts) for starts in start_list)]
-#     end = min(min(starts) for starts in start_list)
-#     while end < max(max(ends) for ends in end_list):
-#         end += min_interval
-#         time_steps.append(end)
-#     # print('max end:', max(max(ends) for ends in end_list))
-#     # print('time_steps: ', time_steps)
-#     # print('min_interval: ', min_interval)
-#     # print('intervals//min: ', [sum(intervals)//min_interval for intervals in interval_list])
-#     # print('sum of intervals in each bar: ', [sum([round(intv/min_interval) for intv in intervals]) for intervals in interval_list])
-#     # print('remainder of division mod min_interval: ', [[round(intv%min_interval/min_interval) for intv in intervals] for intervals in interval_list])
-    
-    
-#     # create midi_array as an array of notes with a constant beat
-#     midi_array = []
-    
-#     for i in range(len(notes_list)):
-#         k = 1
-#         voice = []
-#         # for j in range(len(notes_list[i])):
-#         #     length = round(interval_list[i][j] / min_interval)
-#         #     for l in range(length):
-#         #         k += 1
-#         #         voice.append(notes_list[i][j])
-#         for j in range(len(notes_list[i])):
-#             print('start of note: ', start_list[i][j])
-#             print('end of note: ', end_list[i][j])
-#             print('end of time_step: ', time_steps[k])
-#             print('gap from end of note to end of timestep: ', (end_list[i][j] - time_steps[k]) / min_interval)
-#             # check that the note has started within this timestep
-#             while (end_list[i][j] - time_steps[k]) / min_interval < 0.1: # i.e. while the note hasn't ended
-#                 print('start of time_step: ', time_steps[k-1])
-#                 if (start_list[i][j] - time_steps[k-1]) / min_interval < 0.1: # i.e. the note started within range of the end of the previous timestep
-#                     voice.append(notes_list[i][j])
-#                     k += 1
-#                 else: # i.e. note has not started yet
-#                     voice.append(None) # append a pause
-#                     k += 1
-#         # print(voice)
-#         # add voice to midi array
-#         midi_array.append(voice)
-    
-#     # print(midi_array)
-    
-#     # check that all voices have same length
-#     lengths = []
-#     for voice in midi_array:
-#         lengths.append(len(voice))
-        
-#     print('length of each voice: ',lengths)
-    
-#     if not all_equal(lengths):
-#         raise Exception('Error in array output, not all voices have same length')
-    
-#     # print(midi_array, min_interval)
-    
-#     return midi_array, min_interval
 
 def array_to_midi(midi_array, instruments, beat, dest_file_path = '../outputs/model_output.mid'):
     '''
@@ -270,7 +158,7 @@ def array_to_midi(midi_array, instruments, beat, dest_file_path = '../outputs/mo
         raise Exception('Error, length of instrument array should be 4')
     
     # Create a PrettyMIDI object to store the compiled music, tempo in bpm converted from beat
-    midi_output = pretty_midi.PrettyMIDI(initial_tempo = round(60000/beat))
+    midi_output = pretty_midi.PrettyMIDI()
         
         
     for i in range(len(midi_array)):
@@ -281,21 +169,21 @@ def array_to_midi(midi_array, instruments, beat, dest_file_path = '../outputs/mo
         # Iterate over note names, which will be converted to note number later
         for note_number in midi_array[i]:
             # check if pause, i.e. note is empty
-            if midi_array == None:
+            if note_number == None:
                 # skip a beat, extend the time
                 time += beat/1000
             else:
                 # Create a Note instance, starting at 0 and ending at 1 beat (in s)
                 note = pretty_midi.Note(
                     velocity=127, pitch = note_number + 36, start = time, end = time + beat/1000)
-            # Add it to our cello instrument
-            instrument.notes.append(note)
-            # extend the time
-            time += beat/1000
+                # Add it to our instrument
+                instrument.notes.append(note)
+                # extend the time
+                time += beat/1000
         # Add the instrument to the PrettyMIDI object
         midi_output.instruments.append(instrument)
      
-    
+    # print('output midi onsets: ',midi_output.get_onsets())
     # Write out the MIDI data
     midi_output.write(dest_file_path)
     
