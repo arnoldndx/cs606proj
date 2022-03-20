@@ -1,5 +1,6 @@
 from docplex.cp.model import CpoModel
 import src.music_functions
+import numpy as np
 
 class CPModel:
     def __init__(self, model_name, musical_input, chord_vocab, chord_progression_penalties, hard_constraints, soft_constraints_weights):
@@ -199,4 +200,15 @@ class CPModel:
         sol = self.m.solve(log_output = log)
         print(sol.get_objective_values())       
         print(sol.print_solution())
+        self.sol = sol
         return sol
+    
+    def get_solution(self):
+        chord_var_names = ['Chord_{}'.format(str(j)) for j in range(self.N)]
+        note_var_names = ['Notes_{}'.format(str(j)) for j in range(self.N * 4)]
+        chord_sol = [self.sol.get_var_solution(x) for x in chord_var_names]
+        note_sol = np.array([self.sol.get_var_solution(x) for x in note_var_names])
+        note_sol = np.reshape(note_sol, (4, len(note_sol)/4))
+        self.sol_var = {'Chords': chord_sol, 'Notes': note_sol}
+        return self.sol_var
+        
