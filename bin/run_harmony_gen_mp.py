@@ -109,6 +109,9 @@ mp_model = MPModel("test", music, chord_vocab,
                     file_progression_cost=file_progression_cost)
 solution, midi_array = mp_model.solve()
 
+# print solution
+print(midi_array)
+
 # generate the solution as a midi file
 array_to_midi(midi_array, [20]*4, 500)
 
