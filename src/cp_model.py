@@ -1,6 +1,7 @@
 from docplex.cp.model import CpoModel
-import src.music_functions
+from src.music_functions import *
 import numpy as np
+from src.midi_processing import *
 
 class CPModel:
     def __init__(self, model_name, musical_input, chord_vocab, chord_progression_penalties, hard_constraints, soft_constraints_weights):
@@ -12,6 +13,7 @@ class CPModel:
         self.K = self.musical_input.key
         self.hard_constraints = hard_constraints #A dictionary with constraint names as key and boolean value on whether to include that constraint in the model or not
         self.soft_constraints_weights = soft_constraints_weights
+        self.constraint_encoding = encode_constraints(hard_constraints, soft_constraints_weights)
         self.costs = {k: 0 for k in soft_constraints_weights.keys()}
         
         #Initialising Model
@@ -25,7 +27,7 @@ class CPModel:
                             'voice range': self.hard_constraint_voice_range,
                             'chord membership': self.hard_constraint_chord_membership,
                             'first last chords': self.hard_constraint_first_last_chords,
-                            'chord repetition': self.chord_repetition,
+                            'chord repetition': self.hard_constraint_chord_repetition,
                             'chord bass repetition': self.hard_constraint_chord_bass_repetition,
                             'adjacent bar chords': self.hard_constraint_adjacent_bar_chords,
                             'voice crossing': self.hard_constraint_voice_crossing,
@@ -33,7 +35,7 @@ class CPModel:
                             'chord spacing': self.hard_constraint_chord_spacing}
 
         soft_constraints = {'chord progression': self.soft_constraint_chord_progression,
-                            'chord repetition': self.chord_repetition,
+                            'chord repetition': self.soft_constraint_chord_repetition,
                             'chord bass repetition': self.soft_constraint_chord_bass_repetition,
                             'leap resolution': self.soft_constraint_leap_resolution,
                             'melodic movement': self.soft_constraint_melodic_movement,
@@ -53,7 +55,7 @@ class CPModel:
                 soft_constraints[k]()
         
         #Objective Function
-        self.m.minimize(sum(sum(self.m.sum(i) for i in v) for v in self.costs.values() if v != 0))
+        self.m.minimize(self.m.sum(self.costs[k][i,j] for i in range(4) for j in range(self.N) for k in self.soft_constraints_weights))
         
     def define_decision_variables(self):
         arr = [(i,j) for i in range(4) for j in range(self.N)]
@@ -77,7 +79,7 @@ class CPModel:
     def hard_constraint_chord_membership(self, lb = 5, ub = 60): #All notes must belong to the same chord
         chord_vocab_ext = []
         for chord in self.chord_vocab:
-            chord_vocab_ext.append(src.music_functions.extend_range(src.music_functions.transpose(chord.note_intervals, self.K)))
+            chord_vocab_ext.append(extend_range(transpose(chord.note_intervals, self.K)))
         for j in range(self.N):
             for i in range(4):
                 for note in range(lb, ub):
@@ -193,7 +195,9 @@ class CPModel:
                                                   self.costs['voice overlap'][i1,j] >= self.soft_constraints_weights['voice overlap']))
     
     def soft_constraint_adjacent_bar_chords(self):
-        pass
+        for j in range(1,self.N):
+            if j % self.musical_input.meter == self.musical_input.first_on_beat:
+                self.m.add(self.m.if_then(self.c[j] != self.c[j-1]), self.soft_constraints_weights['adjacent bar chords'])
     
     def soft_constraint_chord_spacing(self):
         pass
@@ -219,8 +223,10 @@ class CPModel:
         note_var_names = ['Notes_{}'.format(str(j)) for j in range(self.N * 4)]
         chord_sol = [self.sol.get_value(x) for x in chord_var_names]
         chord_sol = [self.chord_vocab[chord].name for chord in chord_sol]
-        note_sol = np.array([self.sol.get_value(x) for x in note_var_names])
-        note_sol = np.reshape(note_sol, (4, self.N))
+        note_sol = [[self.sol.get_value(x) for x in note_var_names[i*self.N:(i+1)*self.N]] for i in range(4)]
         self.sol_var = {'Chords': chord_sol, 'Notes': note_sol}
         return self.sol_var
         
+    def export_midi(self, instruments = [20]*4, beat = 500, filepath = '../outputs'):
+        array_to_midi(self.sol_var['Notes'], instruments = [20]*4, beat = 500,
+                      dest_file_path = '{}/cp_{}_{}_{}.mid'.format(filepath, self.name, self.musical_input.title, self.constraint_encoding))
