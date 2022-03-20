@@ -195,7 +195,9 @@ class CPModel:
                                                   self.costs['voice overlap'][i1,j] >= self.soft_constraints_weights['voice overlap']))
     
     def soft_constraint_adjacent_bar_chords(self):
-        pass
+        for j in range(1,self.N):
+            if j % self.musical_input.meter == self.musical_input.first_on_beat:
+                self.m.add(self.m.if_then(self.c[j] != self.c[j-1]), self.soft_constraints_weights['adjacent bar chords'])
     
     def soft_constraint_chord_spacing(self):
         pass
