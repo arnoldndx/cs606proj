@@ -84,7 +84,7 @@ soft_constraint_options = ['chord progression', 'chord bass repetition', 'leap r
 
 # Model
 #cp_model = CPModel("test", musical_corpus[0], chord_vocab)
-music=musical_corpus[4]
+music=musical_corpus[6]
 print(music.title, music.key, music.tonality, 
       music.first_on_beat,music.melody, music.reference_note)
 # Importing Chord Vocabulary
@@ -110,7 +110,7 @@ mp_model = MPModel("test", music, chord_vocab,
 solution, midi_array = mp_model.solve()
 
 # generate the solution as a midi file
-array_to_midi(midi_array, [53]*4, 500)
+array_to_midi(midi_array, [20]*4, 500)
 
 #%%
 # for music in musical_corpus:
