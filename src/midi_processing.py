@@ -65,7 +65,7 @@ def midi_to_array(midi_file):
         raise Exception(f'There are tempo changes in {midi_file}, do not use')
     
     # convert the tempo into a time interval (ms)
-    tempo_interval = 60/midi_data.get_tempo_changes()[1][0]
+    tempo_interval = 60000/midi_data.get_tempo_changes()[1][0]
    
     # create a set of timesteps
     time_steps = list(midi_data.get_beats())
