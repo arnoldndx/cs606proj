@@ -41,6 +41,7 @@ def test_function(midi_file):
     print('note starts (in ms): ',[[round(note.start * 1000) for note in instrument.notes] for instrument in midi_data.instruments])
     print('note starts (in beats): ',[[round(note.start/round(60/midi_data.get_tempo_changes()[1][0],3),4) for note in instrument.notes] for instrument in midi_data.instruments])
     return
+
 def midi_to_array(midi_file):
     '''
     Function to convert midi file to array for processing.
@@ -64,36 +65,53 @@ def midi_to_array(midi_file):
     if len(midi_data.get_tempo_changes()[0]) > 1:
         raise Exception(f'There are tempo changes in {midi_file}, do not use')
     
-    # convert the tempo into a time interval (ms)
-    tempo_interval = 60000/midi_data.get_tempo_changes()[1][0]
+    # convert the tempo into a time interval (s)
+    tempo_interval = 60/midi_data.get_tempo_changes()[1][0]
    
     # create a set of timesteps
-    time_steps = list(midi_data.get_beats())
+    time_steps = [round(x,3) for x in midi_data.get_beats()]
     
     # pad the beats to the end of the song
     while time_steps[-1] <= midi_data.get_end_time():    
-        time_steps.append(time_steps[-1] + tempo_interval)
-
+        time_steps.append(round(time_steps[-1] + tempo_interval,3))
+    
+    
     # create midi_array as an array of notes with a constant beat
     midi_array = []
     
     for instrument in midi_data.instruments:
         # voice should have a length corresponding to the number of beat locations
         voice = [None] * len(time_steps)
-        notes_check = []
+        
+        ''' for troubleshooting
+        # notes_check = []
+        '''
         for note in instrument.notes:
-            notes_check.append([note.start,note.end,note.pitch])
+            '''for troubleshooting
+            # notes_check.append([round(note.start,3),round(note.end,3),note.pitch-36])
+            '''
             # check if the start of the note corresponds to a beat location
-            if note.start in time_steps:
-                idx = time_steps.index(note.start)
-                if idx + 1 == len(time_steps):
+            if round(note.start,3) in time_steps:
+                idx = time_steps.index(round(note.start,3))
+                while time_steps[idx] < round(note.end,3):
                     voice[idx] = note.pitch - 36 # transpose to mid C = 24
-                else:
-                    # if note lasts more than one beat, then repeat
-                    while time_steps[idx+1] <= note.end:
-                        voice[idx] = note.pitch - 36 # transpose to mid C = 24
-                        idx += 1
-        # print(notes_check)
+                    idx += 1
+            # note may not start on a timestep, but may last longer than a beat
+            elif (note.end - note.start) >= tempo_interval:
+                # print('this note starts mid-beat: ',(note.start,note.end,note.pitch-36))
+                idx = time_steps.index(round(note.start,3) - round(tempo_interval/2,3))
+                while time_steps[idx] < round(note.end,3):
+                    voice[idx] = note.pitch - 36 # transpose to mid C = 24
+                    idx += 1
+        
+        ''' for troubleshooting
+        print('check the notes: ',notes_check)
+        capture_check = []
+        for i in range(len(time_steps)):
+            capture_check.append((time_steps[i],voice[i]))
+        print('check what got captured: ', capture_check)
+        '''
+        
         # add voice to midi array
         midi_array.append(voice)
     
@@ -140,7 +158,7 @@ def array_to_midi(midi_array, instruments, beat, dest_file_path = '../outputs/mo
         raise Exception('Error, length of instrument array should be 4')
     
     # Create a PrettyMIDI object to store the compiled music, tempo in bpm converted from beat
-    midi_output = pretty_midi.PrettyMIDI(initial_tempo = round(60000/beat))
+    midi_output = pretty_midi.PrettyMIDI()
         
         
     for i in range(len(midi_array)):
@@ -160,12 +178,12 @@ def array_to_midi(midi_array, instruments, beat, dest_file_path = '../outputs/mo
                     velocity=127, pitch = note_number + 36, start = time, end = time + beat/1000)
                 # Add it to our instrument
                 instrument.notes.append(note)
-            # extend the time
-            time += beat/1000
+                # extend the time
+                time += beat/1000
         # Add the instrument to the PrettyMIDI object
         midi_output.instruments.append(instrument)
      
-    
+    # print('output midi onsets: ',midi_output.get_onsets())
     # Write out the MIDI data
     midi_output.write(dest_file_path)
     

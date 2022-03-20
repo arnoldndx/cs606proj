@@ -56,6 +56,7 @@ import pandas as pd
 import timeit
 import argparse
 from docplex.cp.model import CpoModel
+import logging
 
 #Custom Imports
 sys.path.append('../')
@@ -65,6 +66,8 @@ from src.musical_work_input import MusicalWorkInput
 from src.mp_model import MPModel
 from src.midi_processing import *
 from src.train_weights import *
+
+logger = logging.getLogger(__file__)
 
 # Setting up arguments
 parser.add_argument('--method', type = str, default = 'mp', choices=['mp', 'cp', 'ga', 'alns'])
