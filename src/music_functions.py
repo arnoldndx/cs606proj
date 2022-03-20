@@ -76,3 +76,95 @@ def infer_key_tonality(notes, final_note_weight = 1, verbose = False):
         return key, tonality, key_scores, key_penalties
     else:
         return key, tonality
+
+def encode_constraints(hard_constraints, soft_constraints):
+    #hard_constraints and soft_constraints can be a list of Booleans or Integers, or a dictionary of Booleans or Integers
+    hard_constraint_options = ['musical input', 'voice range', 'chord membership', 'first last chords',
+                               'chord repetition','chord bass repetition', 'adjacent bar chords', 'voice crossing', 'parallel movement',
+                               'chord spacing']
+    soft_constraint_options = ['chord progression', 'chord bass repetition', 'leap resolution',
+                               'melodic movement', 'note repetition', 'parallel movement', 'voice overlap', 'adjacent bar chords',
+                               'chord spacing', 'distinct notes', 'voice crossing', 'voice range']
+    bitstring = ''
+    error = False
+    if isinstance(hard_constraints, list):
+        for c in hard_constraints:
+            if c > 0:
+                bitstring += '1'
+            else:
+                bitstring += '0'
+    elif isinstance(hard_constraints, dict):
+        for c in hard_constraint_options:
+            if c in hard_constraints:
+                if hard_constraints[c] > 0:
+                    bitstring += '1'
+                else:
+                    bitstring += '0'
+            else:
+                bitstring += '0'
+    else:
+        error = True
+        print('Error: Unrecognised argument data type for hard constraints')
+        
+    if isinstance(soft_constraints, list):
+        for c in soft_constraints:
+            if c > 0:
+                bitstring += '1'
+            else:
+                bitstring += '0'
+    elif isinstance(soft_constraints, dict):
+        for c in soft_constraint_options:
+            if c in soft_constraints:
+                if soft_constraints[c] > 0:
+                    bitstring += '1'
+                else:
+                    bitstring += '0'
+            else:
+                bitstring += '0'
+    else:
+        error = True
+        print('Error: Unrecognised argument data type for soft constraints')
+    
+    if error:
+        return None
+    else:
+        return int(bitstring, 2)
+
+def decode_constraints(integer, data_type = 'list'):
+    hard_constraint_options = ['musical input', 'voice range', 'chord membership', 'first last chords',
+                               'chord repetition','chord bass repetition', 'adjacent bar chords', 'voice crossing', 'parallel movement',
+                               'chord spacing']
+    soft_constraint_options = ['chord progression', 'chord bass repetition', 'leap resolution',
+                               'melodic movement', 'note repetition', 'parallel movement', 'voice overlap', 'adjacent bar chords',
+                               'chord spacing', 'distinct notes', 'voice crossing', 'voice range']
+    bitstring = bin(integer)
+    flag = 0
+    for s in bitstring:
+        flag += 1
+        if s == 'b':
+            break
+    bitstring = bitstring[flag:]
+    
+    if data_type == 'list':
+        hard_constraints, soft_constraints = [], []
+    elif data_type == 'dict':
+        hard_constraints, soft_constraints = {}, {}
+    else:
+        print('Error: Unrecognised argument provided. data_type must be \'list\' or \'dict\'')
+        return None
+    
+    for i, s in enumerate(bitstring):
+        if i < len(hard_constraint_options):
+            print(i, 'hard', bool(int(s)))
+            if data_type == 'list':
+                hard_constraints.append(bool(int(s)))
+            else:
+                hard_constraints[hard_constraint_options[i]] = bool(int(s))
+        else:
+            print(i, 'soft', bool(int(s)))
+            if data_type == 'list':
+                soft_constraints.append(bool(int(s)))
+            else:
+                soft_constraints[soft_constraint_options[i]] = bool(int(s))
+    return hard_constraints, soft_constraints
+            
