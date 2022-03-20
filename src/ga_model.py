@@ -16,10 +16,10 @@ class Population:
     def __iter__(self):
         return self.population.__iter__()
     
-    def extend(self, new_individuals):
+    def _extend(self, new_individuals):
         self.population.extend(new_individuals)
     
-    def append(self, new_individuals):
+    def _append(self, new_individuals):
         self.population.append(new_individual)
         
 class Individual:
