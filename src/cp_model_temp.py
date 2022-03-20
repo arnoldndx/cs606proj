@@ -14,7 +14,6 @@ class CPModel:
         self.hard_constraints = hard_constraints #A dictionary with constraint names as key and boolean value on whether to include that constraint in the model or not
         self.soft_constraints_weights = soft_constraints_weights
         self.constraint_encoding = encode_constraints(hard_constraints, soft_constraints_weights)
-        self.costs = {k: 0 for k in soft_constraints_weights.keys()}
         
         #Initialising Model
         self.m = CpoModel(name=self.name)
@@ -54,8 +53,17 @@ class CPModel:
             if v > 0:
                 soft_constraints[k]()
         
+        counter = 0
+        self.costs = []
+        for k, v in self.soft_constraints_w_weights.items():
+            if v > 0 and k in soft_constraints:
+            # if weight input >0 the constraint is turned on  
+                self.costs.append(soft_constraints[k](weight = v))
+                counter += 1
+        
         #Objective Function
-        self.m.minimize(self.m.sum(self.costs[k][i,j] for i in range(4) for j in range(self.N) for k in self.soft_constraints_weights))
+        self.m.minimize(sum(sum(self.m.sum(i) for i in v) for v in self.costs.values() if v != 0))
+        self.m.minimize(self.m.sum(self.costs[p][j] for p in range(counter) for j in range(self.N)))
         
     def define_decision_variables(self):
         arr = [(i,j) for i in range(4) for j in range(self.N)]
