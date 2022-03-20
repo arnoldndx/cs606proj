@@ -30,7 +30,7 @@ class MPModel:
         #Adding Constraints
         hard_constraints = {'musical input': self.hard_constraint_musical_input,
                             'voice range': self.hard_constraint_voice_range,
-                            'chord repetition': self.chord_repetition,
+                            'chord repetition': self.hard_constraint_chord_repetition,
                             'chord membership': self.hard_constraint_chord_membership,
                              'first last chords': self.hard_constraint_first_last_chords,
                              'chord bass repetition': self.hard_constraint_chord_bass_repetition,
@@ -41,7 +41,7 @@ class MPModel:
                             }
 
         soft_constraints = {'chord progression': self.soft_constraint_chord_progression,
-                            'chord repetition': self.chord_repetition,
+                            'chord repetition': self.hard_constraint_chord_repetition,
                             'chord bass repetition': self.soft_constraint_chord_bass_repetition,
                             'leap resolution': self.soft_constraint_leap_resolution,
                             'melodic movement': self.soft_constraint_melodic_movement,
@@ -175,19 +175,16 @@ class MPModel:
 
     def soft_constraint_melodic_movement(self):
         pass
-<<<<<<< HEAD
     
     def soft_constraint_chord_repetition(self):
         pass
-    def soft_constraint_chord_bass_repetition(self):
-        pass
-=======
+    
     def soft_constraint_chord_bass_repetition(self, weight=2):
         cost2= self.m.continuous_var_list(self.N, 0,100, "Chord repetition cost")
         for j in range(self.N-1):
             self.m.add_constraint(cost2[j]>=weight* (self.c[j]==self.c[j+1]))
         return cost2     
->>>>>>> parent of 329d5f7 (edit chord rep soft constraint)
+
     def soft_constraint_adjacent_bar_chords(self):
         pass
     
