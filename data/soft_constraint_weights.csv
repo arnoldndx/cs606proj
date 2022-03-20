@@ -1,5 +1,6 @@
 soft_constraints,weight
 chord progression,1
+chord repetition,-1
 chord bass repetition,-1
 leap resolution,1
 melodic movement,-1

@@ -25,6 +25,7 @@ class CPModel:
                             'voice range': self.hard_constraint_voice_range,
                             'chord membership': self.hard_constraint_chord_membership,
                             'first last chords': self.hard_constraint_first_last_chords,
+                            'chord repetition': self.chord_repetition,
                             'chord bass repetition': self.hard_constraint_chord_bass_repetition,
                             'adjacent bar chords': self.hard_constraint_adjacent_bar_chords,
                             'voice crossing': self.hard_constraint_voice_crossing,
@@ -32,6 +33,7 @@ class CPModel:
                             'chord spacing': self.hard_constraint_chord_spacing}
 
         soft_constraints = {'chord progression': self.soft_constraint_chord_progression,
+                            'chord repetition': self.chord_repetition,
                             'chord bass repetition': self.soft_constraint_chord_bass_repetition,
                             'leap resolution': self.soft_constraint_leap_resolution,
                             'melodic movement': self.soft_constraint_melodic_movement,
@@ -101,6 +103,10 @@ class CPModel:
             self.m.add(self.c[0] == n)
             self.m.add(self.c[self.N-1].set_domain(n1))
     
+    def hard_constraint_chord_repetition(self):
+        for j in range(self.N-1):
+            self.m.add(self.c[j+1] != self.c[j])
+    
     def hard_constraint_chord_bass_repetition(self):
         for j in range(self.N-1):
             self.m.add(self.m.if_then(self.c[j] == self.c[j+1], self.x[3,j] != self.x[3,j+1]))
@@ -139,6 +145,11 @@ class CPModel:
                 for chord2 in self.chord_vocab:
                     self.m.add(self.m.if_then(self.m.logical_and(self.c[j] == chord1.index, self.c[j+1] == chord2.index),
                                               self.costs['chord progression'][0,j] >= d[chord1.name, chord2.name] * w))
+
+    def soft_constraint_chord_repetition(self):
+        for j in range(self.N-1):
+            self.m.add(self.m.if_then(self.c[j] == self.c[j+1],
+                                      self.costs['chord repetition'][0,j] >= self.soft_constraints_weights['chord repetition']))
 
     def soft_constraint_chord_bass_repetition(self):
         for j in range(self.N-1):
@@ -204,11 +215,12 @@ class CPModel:
         return sol
     
     def get_solution(self):
-        chord_var_names = ['Chord_{}'.format(str(j)) for j in range(self.N)]
+        chord_var_names = ['Chords_{}'.format(str(j)) for j in range(self.N)]
         note_var_names = ['Notes_{}'.format(str(j)) for j in range(self.N * 4)]
-        chord_sol = [self.sol.get_var_solution(x) for x in chord_var_names]
-        note_sol = np.array([self.sol.get_var_solution(x) for x in note_var_names])
-        note_sol = np.reshape(note_sol, (4, len(note_sol)/4))
+        chord_sol = [self.sol.get_value(x) for x in chord_var_names]
+        chord_sol = [self.chord_vocab[chord].name for chord in chord_sol]
+        note_sol = np.array([self.sol.get_value(x) for x in note_var_names])
+        note_sol = np.reshape(note_sol, (4, self.N))
         self.sol_var = {'Chords': chord_sol, 'Notes': note_sol}
         return self.sol_var
         

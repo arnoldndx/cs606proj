@@ -90,10 +90,10 @@ elif args.input[-3:] == 'mid':
     
 # Defining dictionary of hard and soft constraint options:
 hard_constraint_options = ['musical input', 'voice range', 'chord membership', 'first last chords',
-                           'chord bass repetition', 'adjacent bar chords', 'voice crossing', 'parallel movement',
+                           'chord repetition', 'chord bass repetition', 'adjacent bar chords', 'voice crossing', 'parallel movement',
                           'chord spacing']
 
-soft_constraint_options = ['chord progression', 'chord bass repetition', 'leap resolution',
+soft_constraint_options = ['chord progression', 'chord repetition', 'chord bass repetition', 'leap resolution',
                            'melodic movement', 'note repetition', 'parallel movement', 'voice overlap', 'adjacent bar chords',
                            'chord spacing', 'distinct notes', 'voice crossing', 'voice range']
 

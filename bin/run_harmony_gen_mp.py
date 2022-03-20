@@ -74,7 +74,7 @@ for i, title, meter, key, tonality, first_on_beat, melody in musical_work_df.ite
 
 # Defining dictionary of hard and soft constraint options:
 hard_constraint_options = ['musical input', 'voice range', 'chord membership', 'first last chords',
-                           'chord bass repetition', 'adjacent bar chords', 'voice crossing', 'parallel movement',
+                           'chord repetition','chord bass repetition', 'adjacent bar chords', 'voice crossing', 'parallel movement',
                           'chord spacing']
 
 soft_constraint_options = ['chord progression', 'chord bass repetition', 'leap resolution',
