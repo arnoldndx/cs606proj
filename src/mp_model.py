@@ -30,6 +30,7 @@ class MPModel:
         #Adding Constraints
         hard_constraints = {'musical input': self.hard_constraint_musical_input,
                             'voice range': self.hard_constraint_voice_range,
+                            'chord repetition': self.chord_repetition,
                             'chord membership': self.hard_constraint_chord_membership,
                              'first last chords': self.hard_constraint_first_last_chords,
                              'chord bass repetition': self.hard_constraint_chord_bass_repetition,
@@ -40,6 +41,7 @@ class MPModel:
                             }
 
         soft_constraints = {'chord progression': self.soft_constraint_chord_progression,
+                            'chord repetition': self.chord_repetition,
                             'chord bass repetition': self.soft_constraint_chord_bass_repetition,
                             'leap resolution': self.soft_constraint_leap_resolution,
                             'melodic movement': self.soft_constraint_melodic_movement,
@@ -103,9 +105,7 @@ class MPModel:
                     self.m.add_constraint((self.c[j] == chord.index) <= self.m.sum((self.x[i,j]-offset==chord_ext[p]) for p in range(length) ))
                     #self.m.add(self.m.if_then(self.m.logical_and(self.c[j] == chord.index, self.x[i,j] == note), note in chord_ext))
     
-    def hard_constraint_first_last_chords(self): # what is the logic in CP model?
-
-        
+    def hard_constraint_first_last_chords(self): # what is the logic in CP model?       
         if self.musical_input.tonality == "major":
             for chord in self.chord_vocab:
                 if chord.name == "I":
@@ -124,10 +124,12 @@ class MPModel:
             self.m.add_constraint(self.c[0] == n)
             self.m.add_constraint(self.c[self.N-1]<=max(n1))
         
-        
+    def hard_constraint_chord_repetition(self):
+        for j in range(self.N-1):
+            self.m.add_constraint(self.c[j+1] != self.c[j])
         
     def hard_constraint_chord_bass_repetition(self):
-       for j in range(self.N-1):
+        for j in range(self.N-1):
             self.m.add_constraint( (self.c[j] == self.c[j+1]) <= (self.x[3,j] != self.x[3,j+1]))
     
     def hard_constraint_adjacent_bar_chords(self):
@@ -153,6 +155,7 @@ class MPModel:
         for j in range(self.N):
             for i in range(3):
                 self.m.add_constraint(self.x[i,j] - self.x[i+1,j] <= max_spacing[i-1])
+                
                 
                 
 #***************************************************************************************************************    
@@ -243,9 +246,18 @@ class MPModel:
         # plt.legend()
         # plt.show()   
         
+        # return the midi array for conversion
+        midi_array = [[]]
+        for _ in range(3):
+            midi_array.append([])
         
-        print(sol)
-        return sol
+        sol_dict = sol.get_value_dict(self.x)
+        
+        for i, j in self.x.keys():
+            midi_array[i].append(round(sol_dict[(i,j)]))
+            
+        
+        return sol, midi_array
         
         
     #
