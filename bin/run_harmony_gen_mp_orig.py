@@ -83,7 +83,7 @@ soft_constraint_options = ['chord progression', 'chord bass repetition', 'leap r
 
 # Model
 #cp_model = CPModel("test", musical_corpus[0], chord_vocab)
-music=musical_corpus[0]
+music=musical_corpus[1]
 print(music.title, music.key, music.tonality, 
       music.first_on_beat,music.melody, music.reference_note)
 # Importing Chord Vocabulary

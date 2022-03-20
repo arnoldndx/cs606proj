@@ -300,5 +300,9 @@ whole procedure can be implemented in O(n)
 '''
 
 # mutation
+'''
+check number of notes in melody that are the same, and mutate accordingly.
+-> different inversions or different chord entirely.
+'''
 
 # fitness function
