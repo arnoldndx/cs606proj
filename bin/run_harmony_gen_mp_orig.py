@@ -50,19 +50,18 @@ SOFT CONSTRAINTS
 '''
 #Standard Imports
 
-import os
 import sys
+import numpy as np
 import pandas as pd
 # from collections import defaultdict
-import timeit
-from docplex.cp.model import CpoModel
+#from docplex.cp.model import CpoModel
 
 #Custom Imports
 sys.path.append('../')
 from src.chord import Chord
 from src.musical_work_input import MusicalWorkInput
 #from src.cp_model import CPModel
-from src.mp_model import MPModel
+from src.mp_model_for_ALNS_construction import MPModel
 
 
 # Importing Musical Corpus
@@ -108,6 +107,12 @@ mp_model = MPModel("test", music, chord_vocab,
                     file_progression_cost=file_progression_cost)
 solution = mp_model.solve()
 
+solution=np.array(solution)
+df_soluiton=pd.DataFrame(solution)
+df_soluiton.to_csv("ALNS_start.csv", index=False, header=False)
+
+
+#%%
 
 #%%
 # for music in musical_corpus:

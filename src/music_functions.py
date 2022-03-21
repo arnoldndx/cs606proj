@@ -24,6 +24,7 @@ def extend_range(notes, start_octave = -3, end_octave = 4):
         result = notes + [12*i for i in range(start_octave, end_octave)]
     return result   
     
+
 def func_get_progression_costs(filename):  #"chord_progression_major_v1.csv"
 
     df=pd.read_csv("../data/"+filename, header=1, index_col=0)

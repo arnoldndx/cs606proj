@@ -63,6 +63,7 @@ from src.chord import Chord
 from src.musical_work_input import MusicalWorkInput
 #from src.cp_model import CPModel
 from src.mp_model import MPModel
+from src.midi_processing import *
 
 
 # Importing Musical Corpus
@@ -83,7 +84,7 @@ soft_constraint_options = ['chord progression', 'chord bass repetition', 'leap r
 
 # Model
 #cp_model = CPModel("test", musical_corpus[0], chord_vocab)
-music=musical_corpus[1]
+music=musical_corpus[6]
 print(music.title, music.key, music.tonality, 
       music.first_on_beat,music.melody, music.reference_note)
 # Importing Chord Vocabulary
@@ -106,8 +107,10 @@ mp_model = MPModel("test", music, chord_vocab,
                     #hard_constraints, 
                     soft_constraint_w_weights, 
                     file_progression_cost=file_progression_cost)
-solution = mp_model.solve()
+solution, midi_array = mp_model.solve()
 
+# generate the solution as a midi file
+array_to_midi(midi_array, [20]*4, 500)
 
 #%%
 # for music in musical_corpus:

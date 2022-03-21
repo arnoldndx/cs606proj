@@ -1,4 +1,8 @@
 import src.music_functions
+import src.evaluate
+import sys
+
+from alns import ALNS, State
 
 class MusicalWorkInput:
     def __init__(self, title, meter, key, tonality, first_on_beat, melody, reference_note = 24):
@@ -19,3 +23,30 @@ class MusicalWorkInput:
         diff = new_reference_note - self.reference_note
         self.transpose_work(diff, ascending = True)
         self.reference_note = new_reference_note
+        
+        
+class Harmony(State):
+    def __init__(self, MusicInput, HarmonyInput):
+    #MusicInput: a MusicalWorkInput object
+    #HarmonyInput:2-dim list (5*N) of all 4 parts and chord index, can be incomplete (missing value is -100)
+        self.MusicInput = MusicInput
+        self.HarmonyInput=HarmonyInput
+        self.HarmonyOutput=HarmonyInput  # to be modified
+        self.notes=HarmonyInput[:-1]
+        self.chords=HarmonyInput[-1]
+        self.N=len(HarmonyInput[0])
+        assert len(HarmonyInput)==5
+    def copy(self):
+        return copy.deepcopy(self)
+    def iscomplete(self):
+        return sum (self.HarmonyInput[i][j]<=-99 for i in range (5) for j in range(self.N)) < 0.01
+    def get_cost_list(self):
+        return evaluate. evaluate_cost(self.notes, self.chords, self.MusicInput.tonality, 
+                                       self.MusicInput.meter, self.MusicInput.first_on_beat,
+                                       mode="L")
+    def objective(self): #get_cost_sum()
+        return src.evaluate.evaluate_cost(self.notes, self.chords, self.MusicInput.tonality, 
+                                       self.MusicInput.meter, self.MusicInput.first_on_beat,
+                                       mode="S")
+
+#def evaluate_cost(list_x, list_c , tonality, meter=4, first_on_beat=0, mode="L") 

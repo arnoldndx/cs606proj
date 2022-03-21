@@ -4,12 +4,13 @@ import src.music_functions
 import matplotlib.pyplot as plt
 
 class MPModel:
-    def __init__(self, model_name, musical_input, chord_vocab
+    def __init__(self, model_name, musical_input,melody_input, chord_vocab
                  #, hard_constraints
                  , soft_constraint_w_weights
                  , file_progression_cost):
         self.name = model_name #string
         self.musical_input = musical_input #An instance of the class MusicalWorkInput
+        self.melody_input = melody_input
         self.chord_vocab = chord_vocab #A list of objects, each of the class Chord
         self.N = self.musical_input.melody_len
         self.K = self.musical_input.key
@@ -22,13 +23,14 @@ class MPModel:
         
         #Initialising Model
         self.m = Model(name=self.name)
-        self.m.context.update_cplex_parameters({'randomseed': 606, 'mip.tolerances.mipgap': 0.002,'timelimit': 300})
+        self.m.context.update_cplex_parameters({'randomseed': 606, 'mip.tolerances.mipgap': 0.002,'timelimit': 30})
         #self.m.context.update_cplex_parameters({'randomseed': 606, 'mip.tolerances.mipgap': 0.002,'timelimit': 120})
         #Decision Variables
         self.define_decision_variables()
         
         #Adding Constraints
         hard_constraints = {'musical input': self.hard_constraint_musical_input,
+                            'all input': self.hard_constraint_all_input,
                             'voice range': self.hard_constraint_voice_range,
                             'chord repetition': self.hard_constraint_chord_repetition,
                             'chord membership': self.hard_constraint_chord_membership,
@@ -76,13 +78,25 @@ class MPModel:
 
     def define_decision_variables(self):
         arr = [(i,j) for i in range(4) for j in range(self.N)]
+        arrc=[j for j in range(self.N)]
         #i = 0 refers to soprano, 1 refers to alto, 2 refers to tenor, 3 refers to bass
         self.x = self.m.integer_var_dict(arr, name = "Notes")
-        self.c = self.m.integer_var_list(self.N, 0, len(self.chord_vocab) - 1, name = "Chords")
+        self.c = self.m.integer_var_dict(arrc, 0, len(self.chord_vocab) - 1, name = "Chords")
 
     def hard_constraint_musical_input(self):
         for j in range(self.N):
             self.m.add_constraint(self.x[0,j] == self.musical_input.melody[j])
+    def hard_constraint_all_input(self):
+        if self.melody_input ==[]:
+            pass
+        else:
+            for j in range(self.N):
+                for i in range(1,4):
+                    if self.melody_input[i][j]>-100:
+                        self.m.add_constraint(self.x[i,j] == self.melody_input[i][j])
+                if self.melody_input[4][j]>-100: 
+                    self.m.add_constraint(self.c[j] == self.melody_input[4][j])
+                                          
     
     def hard_constraint_voice_range(self, lb = [19, 12, 5], ub = [38, 28, 26]):
         #voice_ranges = {1: (19, 38), 2: (12, 28), 3: (5, 26)}
@@ -251,18 +265,18 @@ class MPModel:
         
         # return the midi array for conversion
         midi_array = [[]]
-        for _ in range(3):
+        for _ in range(4):
             midi_array.append([])
         
         sol_dict = sol.get_value_dict(self.x)
-        sol_dict2 = sol.get_value_dict(self.c)
-        
+        sol_2 = sol.get_value_dict(self.c)
+        print(sol_2)
         for i, j in self.x.keys():
             midi_array[i].append(round(sol_dict[(i,j)]))
-            for i, j in self.x.keys():
-                midi_array[i].append(round(sol_dict[(i,j)]))
+        for j in self.c.keys(): 
+            midi_array[4].append(round(sol_2[j]))
         
-        return sol, midi_array
+        return midi_array
         
         
     #

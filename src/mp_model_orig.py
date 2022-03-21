@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 class MPModel:
     def __init__(self, model_name, musical_input, chord_vocab
                  #, hard_constraints
-                 , soft_constraint_w_weights
+                 , soft_constraint_w_ s
                  , file_progression_cost):
         self.name = model_name #string
         self.musical_input = musical_input #An instance of the class MusicalWorkInput
@@ -30,7 +30,6 @@ class MPModel:
         #Adding Constraints
         hard_constraints = {'musical input': self.hard_constraint_musical_input,
                             'voice range': self.hard_constraint_voice_range,
-                            'chord repetition': self.hard_constraint_chord_repetition,
                             'chord membership': self.hard_constraint_chord_membership,
                              'first last chords': self.hard_constraint_first_last_chords,
                              'chord bass repetition': self.hard_constraint_chord_bass_repetition,
@@ -41,7 +40,6 @@ class MPModel:
                             }
 
         soft_constraints = {'chord progression': self.soft_constraint_chord_progression,
-                            'chord repetition': self.soft_constraint_chord_repetition,
                             'chord bass repetition': self.soft_constraint_chord_bass_repetition,
                             'leap resolution': self.soft_constraint_leap_resolution,
                             'melodic movement': self.soft_constraint_melodic_movement,
@@ -90,8 +88,7 @@ class MPModel:
             for j in range(self.N):
                 self.m.add_constraint(self.x[i,j] >= lb[i-1])
                 self.m.add_constraint(self.x[i,j] <= ub[i-1])
-    def hard_constraint_chord_repitition(self):
-        pass
+    
     def hard_constraint_chord_membership(self): #All notes must belong to the same chord
         offset=self.musical_input.reference_note
         chord_vocab_ext = []
@@ -106,7 +103,9 @@ class MPModel:
                     self.m.add_constraint((self.c[j] == chord.index) <= self.m.sum((self.x[i,j]-offset==chord_ext[p]) for p in range(length) ))
                     #self.m.add(self.m.if_then(self.m.logical_and(self.c[j] == chord.index, self.x[i,j] == note), note in chord_ext))
     
-    def hard_constraint_first_last_chords(self): # what is the logic in CP model?       
+    def hard_constraint_first_last_chords(self): # what is the logic in CP model?
+
+        
         if self.musical_input.tonality == "major":
             for chord in self.chord_vocab:
                 if chord.name == "I":
@@ -125,12 +124,10 @@ class MPModel:
             self.m.add_constraint(self.c[0] == n)
             self.m.add_constraint(self.c[self.N-1]<=max(n1))
         
-    def hard_constraint_chord_repetition(self):
-        for j in range(self.N-1):
-            self.m.add_constraint(self.c[j+1] != self.c[j])
+        
         
     def hard_constraint_chord_bass_repetition(self):
-        for j in range(self.N-1):
+       for j in range(self.N-1):
             self.m.add_constraint( (self.c[j] == self.c[j+1]) <= (self.x[3,j] != self.x[3,j+1]))
     
     def hard_constraint_adjacent_bar_chords(self):
@@ -158,7 +155,6 @@ class MPModel:
                 self.m.add_constraint(self.x[i,j] - self.x[i+1,j] <= max_spacing[i-1])
                 
                 
-                
 #***************************************************************************************************************    
     def soft_constraint_chord_progression(self, weight=1):
         cost0= self.m.continuous_var_list(self.N, 0,100, "Progression cost")
@@ -177,13 +173,11 @@ class MPModel:
 
     def soft_constraint_melodic_movement(self):
         pass
-    def soft_constraint_chord_repetition(self, weight=2):
+    def soft_constraint_chord_bass_repetition(self, weight=2):
         cost2= self.m.continuous_var_list(self.N, 0,100, "Chord repetition cost")
         for j in range(self.N-1):
             self.m.add_constraint(cost2[j]>=weight* (self.c[j]==self.c[j+1]))
-        return cost2
-    def soft_constraint_chord_bass_repetition(self):    
-        pass
+        return cost2     
     def soft_constraint_adjacent_bar_chords(self):
         pass
     
@@ -249,20 +243,9 @@ class MPModel:
         # plt.legend()
         # plt.show()   
         
-        # return the midi array for conversion
-        midi_array = [[]]
-        for _ in range(3):
-            midi_array.append([])
         
-        sol_dict = sol.get_value_dict(self.x)
-        sol_dict2 = sol.get_value_dict(self.c)
-        
-        for i, j in self.x.keys():
-            midi_array[i].append(round(sol_dict[(i,j)]))
-            for i, j in self.x.keys():
-                midi_array[i].append(round(sol_dict[(i,j)]))
-        
-        return sol, midi_array
+        print(sol)
+        return sol
         
         
     #
