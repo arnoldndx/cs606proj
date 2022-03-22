@@ -13,7 +13,7 @@ class CPModel:
         self.K = self.musical_input.key
         self.hard_constraints = hard_constraints #A dictionary with constraint names as key and boolean value on whether to include that constraint in the model or not
         self.soft_constraints_weights = soft_constraints_weights
-        self.constraint_encoding = encode_constraints(hard_constraints, soft_constraints_weights)
+        self.hard_constraint_encoding, self.soft_constraint_encoding = encode_constraints(hard_constraints, soft_constraints_weights)
         self.costs = {k: 0 for k in soft_constraints_weights.keys()}
         
         #Initialising Model
@@ -32,7 +32,9 @@ class CPModel:
                             'adjacent bar chords': self.hard_constraint_adjacent_bar_chords,
                             'voice crossing': self.hard_constraint_voice_crossing,
                             'parallel movement': self.hard_constraint_parallel_movement,
-                            'chord spacing': self.hard_constraint_chord_spacing}
+                            'chord spacing': self.hard_constraint_chord_spacing,
+                            'incomplete chord': self.hard_constraint_incomplete_chord,
+                            'chord distribution': self.hard_constraint_chord_distribution}
 
         soft_constraints = {'chord progression': self.soft_constraint_chord_progression,
                             'chord repetition': self.soft_constraint_chord_repetition,
@@ -45,8 +47,11 @@ class CPModel:
                             'adjacent bar chords': self.soft_constraint_adjacent_bar_chords,
                             'chord spacing': self.soft_constraint_chord_spacing,
                             'distinct notes': self.soft_constraint_distinct_notes,
+                            'incomplete chord': self.soft_constraint_incomplete_chord,
                             'voice crossing': self.soft_constraint_voice_crossing,
-                            'voice range': self.soft_constraint_voice_range}
+                            'voice range': self.soft_constraint_voice_range,
+                            'second inversion': self.soft_constraint_second_inversion,
+                            'chord distribution': self.soft_constraint_chord_distribution}
         for k, v in self.hard_constraints.items():
             if v:
                 hard_constraints[k]()
@@ -104,6 +109,10 @@ class CPModel:
                     n1.append = chord.index
             self.m.add(self.c[0] == n)
             self.m.add(self.c[self.N-1].set_domain(n1))
+        
+        #First and last bass notes must be the tonic note
+        self.m.add(self.x[3,1] % 12 == self.K)
+        self.m.add(self.x[3,self.N-1] % 12 == self.K)
     
     def hard_constraint_chord_repetition(self):
         for j in range(self.N-1):
@@ -138,6 +147,22 @@ class CPModel:
         for j in range(self.N):
             for i in range(3):
                 self.m.add(self.x[i,j] - self.x[i+1,j] <= max_spacing[i])
+
+    def hard_constraint_incomplete_chord(self): #The 4 voices must fully cover the 3 notes in a chord
+        for j in range(self.N):
+            for chord in self.chord_vocab:
+                for note in chord.note_intervals:
+                    note = (note + self.K) % 12
+                    self.m.add(self.m.if_then(self.c[j] == chord.index,
+                                              self.m.logical_or(
+                                                  self.m.logical_or(self.x[0,j] % 12 == note, self.x[1,j] % 12 == note),
+                                                  self.m.logical_or(self.x[2,j] % 12 == note, self.x[3,j] % 12 == note))))
+
+    def hard_constraint_chord_distribution(self):
+        #Distance between adjacent lower voices must not be less than distance between adjacent higher voices.
+        for j in range(self.N):
+            for i in range(2):
+                self.m.add(self.x[i,j] - self.x[i+1,j] <= self.x[i+1,j] - self.x[i+2,j])
     
     def soft_constraint_chord_progression(self):
         d = self.chord_progression_penalties
@@ -219,12 +244,27 @@ class CPModel:
                                                       self.costs['distinct notes'][0,j] >= self.soft_constraints_weights['distinct notes']))
                     if i1 < i2:
                         for chord in self.chord_vocab:
+                            note = sorted(list(chord.note_intervals))[1]
+                            note = (note + self.K) % 12
                             #To penalise chords with a doubled 3rd note (i.e. 2nd value in the note intervals)
                             self.m.add(self.m.if_then(self.m.logical_and(
                                 self.c[j] == chord.index,
                                 self.m.logical_and(self.x[i1,j] % 12 == self.x[i2,j] % 12,
-                                                   self.x[i1,j] % 12 == sorted(list(chord.note_intervals))[1])),
+                                                   self.x[i1,j] % 12 == note)),
                                                       self.costs['distinct notes'][1,j] >= self.soft_constraints_weights['distinct notes']))
+
+    def soft_constraint_incomplete_chord(self):
+        for j in range(self.N):
+            for chord in self.chord_vocab:
+                #To penalise chords with missing notes
+                for k, note in enumerate(chord.note_intervals):
+                    note = (note + self.K) % 12
+                    self.m.add(self.m.if_then(
+                        self.m.logical_and(self.c[j] == chord.index,
+                                           self.m.logical_and(
+                                               self.m.logical_and(self.x[0,j] % 12 != note, self.x[1,j] % 12 != note),
+                                               self.m.logical_and(self.x[2,j] % 12 != note, self.x[3,j] % 12 != note))),
+                        self.costs['incomplete chord'][k,j] >= self.soft_constraints_weights['incomplete chord']))
     
     def soft_constraint_voice_crossing(self):
         for i in range(3):
@@ -238,7 +278,32 @@ class CPModel:
                 self.m.add(self.m.if_then(self.m.logical_or(self.x[i,j] < lb[i-1] + threshold, self.x[i,j] > ub[i-1] - threshold),
                                           self.costs['voice range'][i,j] >= self.soft_constraints_weights['voice range']))
 
-    ### Penalise 2nd inversion chords if it is not passing?
+    def soft_constraint_second_inversion(self):
+        for chord in self.chord_vocab:
+            note = sorted(list(chord.note_intervals))[-1]
+            note = (note + self.K) % 12
+            for j in range(1,self.N-1): #Excluding first and last chord
+                #Penalising 2nd inversion chords if it is not used as a passing chord
+                self.m.add(self.m.if_then(self.m.logical_and(self.c[j] == chord.index, self.x[3,j] % 12 == note), #This identifies whether chod is a 2nd inversion
+                                          self.m.if_then(self.m.logical_not(self.m.logical_or(
+                                              self.m.logical_and(self.m.logical_and(self.x[3,j-1] - self.x[3,j] <= 2, self.x[3,j-1] - self.x[3,j] > 0),
+                                                                 self.m.logical_and(self.x[3,j] - self.x[3,j+1] <= 2, self.x[3,j] - self.x[3,j+1] > 0)), #This identifies stepwise downward motion
+                                              self.m.logical_and(self.m.logical_and(self.x[3,j] - self.x[3,j-1] <= 2, self.x[3,j] - self.x[3,j-1] > 0),
+                                                                 self.m.logical_and(self.x[3,j+1] - self.x[3,j] <= 2, self.x[3,j+1] - self.x[3,j] > 0)))), #This identifies stepwise upward motion
+                                                         self.costs['second inversion'][3,j] >= self.soft_constraints_weights['second inversion'])))
+                
+            #Special cases - First and last chords #Not included because of hard_constraint_first_last_chord. Consider uncommenting the following if first last chord constraint is excluded
+            '''for j in [0, self.N-1]:
+                self.m.add(self.m.if_then(self.m.logical_and(self.c[j] == chord.index, self.x[3,j] % 12 == note),
+                                          self.costs['second inversion'][3,j] >= self.soft_constraints_weights['second inversion']))'''
+
+    def soft_constraint_chord_distribution(self):
+        #Penalise if the distance between adjacent higher voices is greater than distance between adjacent lower voices.
+        for j in range(self.N):
+            for i in range(2):
+                self.m.add(self.m.if_then(self.x[i,j] - self.x[i+1,j] > self.x[i+1,j] - self.x[i+2,j],
+                                          self.costs['chord distribution'][i,j] >= self.soft_constraints_weights['chord distribution']))
+                
 
     def solve(self, log = True):
         sol = self.m.solve(log_output = log)
@@ -256,6 +321,7 @@ class CPModel:
         self.sol_var = {'Chords': chord_sol, 'Notes': note_sol}
         return self.sol_var
         
-    def export_midi(self, instruments = [20]*4, beat = 600, filepath = '../outputs'):
+    def export_midi(self, instruments = [20]*4, beat = 500, filepath = '../outputs'):
         array_to_midi(self.sol_var['Notes'], instruments, beat,
-                      dest_file_path = '{}/cp_{}_{}_{}.mid'.format(filepath, self.name, self.musical_input.title, self.constraint_encoding))
+                      dest_file_path = '{}/cp_{}_{}_{}_{}.mid'.format(
+                          filepath, self.name, self.musical_input.title, self.hard_constraint_encoding, self.soft_constraint_encoding))
