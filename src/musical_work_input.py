@@ -2,8 +2,10 @@ import src.music_functions
 import src.evaluate
 import sys
 
-from alns import ALNS, State
+sys.path.append('../')
 
+from src.ALNS.alns import ALNS, State
+import copy
 class MusicalWorkInput:
     def __init__(self, title, meter, key, tonality, first_on_beat, melody, reference_note = 24):
         self.title = title #string
@@ -41,7 +43,7 @@ class Harmony(State):
     def iscomplete(self):
         return sum (self.HarmonyInput[i][j]<=-99 for i in range (5) for j in range(self.N)) < 0.01
     def get_cost_list(self):
-        return evaluate. evaluate_cost(self.notes, self.chords, self.MusicInput.tonality, 
+        return src.evaluate.evaluate_cost(self.notes, self.chords, self.MusicInput.tonality, 
                                        self.MusicInput.meter, self.MusicInput.first_on_beat,
                                        mode="L")
     def objective(self): #get_cost_sum()

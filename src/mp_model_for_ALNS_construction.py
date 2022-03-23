@@ -1,29 +1,30 @@
 from docplex.mp.model import Model
 from docplex.mp.progress import ProgressDataRecorder
 import src.music_functions 
-import matplotlib.pyplot as plt
-
+#import matplotlib.pyplot as plt
+from src.music_functions import *
 class MPModel:
-    def __init__(self, model_name, musical_input,melody_input, chord_vocab
-                 #, hard_constraints
+    def __init__(self, model_name, musical_input,harmony_input, chord_vocab
+                 , hard_constraints
                  , soft_constraint_w_weights
                  , file_progression_cost):
         self.name = model_name #string
         self.musical_input = musical_input #An instance of the class MusicalWorkInput
-        self.melody_input = melody_input
+        self.harmony_input = harmony_input
         self.chord_vocab = chord_vocab #A list of objects, each of the class Chord
         self.N = self.musical_input.melody_len
         self.K = self.musical_input.key
         #self.hard_constraints = hard_constraints #A dictionary with constraint names as key and boolean value on whether to include that constraint in the model or not
+        self.hard_constraints = hard_constraints 
         self.soft_constraints_w_weights = soft_constraint_w_weights
         
-        
+        self.hard_constraint_encoding, self.soft_constraint_encoding = encode_constraints(hard_constraints, soft_constraint_w_weights)
         # cost parameters, weights
         self.chord_progression_costs=src.music_functions.func_get_progression_costs(file_progression_cost) # a dictionary
         
         #Initialising Model
         self.m = Model(name=self.name)
-        self.m.context.update_cplex_parameters({'randomseed': 606, 'mip.tolerances.mipgap': 0.002,'timelimit': 30})
+        self.m.context.update_cplex_parameters({'randomseed': 606, 'mip.tolerances.mipgap': 0.002,'timelimit':60})
         #self.m.context.update_cplex_parameters({'randomseed': 606, 'mip.tolerances.mipgap': 0.002,'timelimit': 120})
         #Decision Variables
         self.define_decision_variables()
@@ -87,15 +88,15 @@ class MPModel:
         for j in range(self.N):
             self.m.add_constraint(self.x[0,j] == self.musical_input.melody[j])
     def hard_constraint_all_input(self):
-        if self.melody_input ==[]:
+        if self.harmony_input ==[]:
             pass
         else:
             for j in range(self.N):
                 for i in range(1,4):
-                    if self.melody_input[i][j]>-100:
-                        self.m.add_constraint(self.x[i,j] == self.melody_input[i][j])
-                if self.melody_input[4][j]>-100: 
-                    self.m.add_constraint(self.c[j] == self.melody_input[4][j])
+                    if self.harmony_input[i][j]>-100:
+                        self.m.add_constraint(self.x[i,j] == self.harmony_input[i][j])
+                if self.harmony_input[4][j]>-100: 
+                    self.m.add_constraint(self.c[j] == self.harmony_input[4][j])
                                           
     
     def hard_constraint_voice_range(self, lb = [19, 12, 5], ub = [38, 28, 26]):
@@ -104,7 +105,7 @@ class MPModel:
             for j in range(self.N):
                 self.m.add_constraint(self.x[i,j] >= lb[i-1])
                 self.m.add_constraint(self.x[i,j] <= ub[i-1])
-    def hard_constraint_chord_repitition(self):
+    def hard_constraint_chord_repetition(self):
         pass
     def hard_constraint_chord_membership(self): #All notes must belong to the same chord
         offset=self.musical_input.reference_note
@@ -139,9 +140,9 @@ class MPModel:
             self.m.add_constraint(self.c[0] == n)
             self.m.add_constraint(self.c[self.N-1]<=max(n1))
         
-    def hard_constraint_chord_repetition(self):
-        for j in range(self.N-1):
-            self.m.add_constraint(self.c[j+1] != self.c[j])
+    # def hard_constraint_chord_repetition(self):
+    #     for j in range(self.N-1):
+    #         self.m.add_constraint(self.c[j+1] != self.c[j])
         
     def hard_constraint_chord_bass_repetition(self):
         for j in range(self.N-1):
@@ -152,11 +153,12 @@ class MPModel:
             if j % self.musical_input.meter == self.musical_input.first_on_beat:
                 self.m.add_constraint(self.c[j] != self.c[j-1])
     
-    def hard_constraint_voice_crossing(self):
-        for i in range(3):
+    def hard_constraint_voice_crossing(self): 
+        for i in range(2):
             for j in range(self.N):
-                self.m.add_constraint(self.x[i,j] >= self.x[i+1,j])
-    
+                self.m.add_constraint(self.x[i,j] >= 1+self.x[i+1,j])
+        for j in range(self.N):
+            self.m.add_constraint(self.x[2,j] >= self.x[3,j])
     def hard_constraint_parallel_movement(self, disallowed_intervals = [7, 12]):
         for j in range(self.N-1):
             for i in range(3):
@@ -167,6 +169,7 @@ class MPModel:
                         self.m.add_constraint( (self.x[i,j]-self.x[k,j] ==interval+24)<= ( self.x[i,j+1]-self.x[k,j+1] !=interval+24) )
 
     def hard_constraint_chord_spacing(self, max_spacing = [12, 12, 16]):
+        pass
         for j in range(self.N):
             for i in range(3):
                 self.m.add_constraint(self.x[i,j] - self.x[i+1,j] <= max_spacing[i-1])
@@ -245,7 +248,7 @@ class MPModel:
          
         recorder = ProgressDataRecorder()
         self.m.add_progress_listener(recorder)
-        sol = self.m.solve(log_output = log)
+        sol = self.m.solve(log_output = False)
         #print(sol.get_objective_values())  
         
         # best_bound = []
@@ -270,7 +273,7 @@ class MPModel:
         
         sol_dict = sol.get_value_dict(self.x)
         sol_2 = sol.get_value_dict(self.c)
-        print(sol_2)
+        #print(sol_2)
         for i, j in self.x.keys():
             midi_array[i].append(round(sol_dict[(i,j)]))
         for j in self.c.keys(): 
@@ -279,4 +282,3 @@ class MPModel:
         return midi_array
         
         
-    #
