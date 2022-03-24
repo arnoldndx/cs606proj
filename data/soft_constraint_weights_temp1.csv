@@ -1,0 +1,17 @@
+soft_constraints,weight
+chord progression,0.06
+chord repetition,0.06
+chord bass repetition,0.06
+leap resolution,0.06
+melodic movement,0.06
+note repetition,0.06
+parallel movement,0.06
+voice overlap,0.06
+adjacent bar chords,0.06
+chord spacing,0.06
+distinct notes,0.06
+incomplete chord,0.06
+voice crossing,0.06
+voice range,0.06
+second inversion,0.06
+chord distribution,0.06

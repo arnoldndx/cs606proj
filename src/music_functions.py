@@ -159,10 +159,10 @@ def encode_constraints(hard_constraints, soft_constraint_weights):
         if list, the values must be in the same order as "hard_constraint_options" indicated within this function
         if value is int, positive values indicate the constraint is implemented, non-positive values indicate not implemented
         
-    soft_constraint_weights : list of floats or dict of {constraint name: float}, indicating the weights of soft constraint
+    soft_constraint_weights : list of ints or dict of {constraint name: int}, indicating the weights of soft constraint
         if list, the values must be in the same order as "soft_constraint_options" indicated within this function
         A negative float weight indicates that the corresponding soft constraint is not implemented
-        Non-negative weights must be between 0.00 and 0.99 (step of 0.01) inclusive
+        Non-negative weights must be between 1 and 99 inclusive
 
     Returns
     -------
@@ -203,18 +203,18 @@ def encode_constraints(hard_constraints, soft_constraint_weights):
     if isinstance(soft_constraint_weights, list):
         for w in soft_constraint_weights:
             if w > 0:
-                string2 += str(int(w*100))
+                string2 += str(int(w))
             elif w >= 1:
-                print('Error: Soft constraint weights must be less than 1')
+                print('Error: Soft constraint weights must be between 1 and 100')
             else:
                 string2 += '00'
     elif isinstance(soft_constraint_weights, dict):
         for w in soft_constraint_options:
             if w in soft_constraint_weights:
                 if soft_constraint_weights[w] > 0:
-                    string2 += str(int(soft_constraint_weights[w]*100))
+                    string2 += str(int(soft_constraint_weights[w]))
                 elif soft_constraint_weights[w] >= 1:
-                    print('Error: Soft constraint weights must be less than 1')
+                    print('Error: Soft constraint weights must be between 1 and 100')
                 else:
                     string2 += '00'
             else:
@@ -248,7 +248,7 @@ def decode_constraints(hard_constraint_string, soft_constraint_string, data_type
             if data_type is 'list', a list of bools in the order of "hard_constraint_options" in this function
             if data_type is 'dict', a dict of bools of the form {hard constraint name: bool}
         
-        soft_constraint_weights : Indicates the weights as floats (from 0.01 to 0.99 (with 0.01 step) inclusive) of each soft_constraint
+        soft_constraint_weights : Indicates the weights as int (from 1 to 99 inclusive) of each soft_constraint
             if data_type is 'list', a list of weights in the order of "soft_constraint_options" in this function
             if data_type is 'dict', a dict of weights of the form {soft constraint name: weight}
 
@@ -284,7 +284,7 @@ def decode_constraints(hard_constraint_string, soft_constraint_string, data_type
             hard_constraints[hard_constraint_options[i]] = bool(s)
 
     for i, c in enumerate(soft_constrint_options):
-        w = int(soft_constraint_string[i:2*(i+1)])/100
+        w = int(soft_constraint_string[i:2*(i+1)])
         if w == 0:
             w = -1
         if data_type == 'list':
