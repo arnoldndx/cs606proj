@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 class MPModel:
     def __init__(self, model_name, musical_input, chord_vocab
                  #, hard_constraints
-                 , soft_constraint_w_weights
+                 , soft_constraint_w_ s
                  , file_progression_cost):
         self.name = model_name #string
         self.musical_input = musical_input #An instance of the class MusicalWorkInput
@@ -30,7 +30,6 @@ class MPModel:
         #Adding Constraints
         hard_constraints = {'musical input': self.hard_constraint_musical_input,
                             'voice range': self.hard_constraint_voice_range,
-                            'chord repetition': self.hard_constraint_chord_repetition,
                             'chord membership': self.hard_constraint_chord_membership,
                              'first last chords': self.hard_constraint_first_last_chords,
                              'chord bass repetition': self.hard_constraint_chord_bass_repetition,
@@ -41,7 +40,6 @@ class MPModel:
                             }
 
         soft_constraints = {'chord progression': self.soft_constraint_chord_progression,
-                            'chord repetition': self.hard_constraint_chord_repetition,
                             'chord bass repetition': self.soft_constraint_chord_bass_repetition,
                             'leap resolution': self.soft_constraint_leap_resolution,
                             'melodic movement': self.soft_constraint_melodic_movement,
@@ -105,7 +103,9 @@ class MPModel:
                     self.m.add_constraint((self.c[j] == chord.index) <= self.m.sum((self.x[i,j]-offset==chord_ext[p]) for p in range(length) ))
                     #self.m.add(self.m.if_then(self.m.logical_and(self.c[j] == chord.index, self.x[i,j] == note), note in chord_ext))
     
-    def hard_constraint_first_last_chords(self): # what is the logic in CP model?       
+    def hard_constraint_first_last_chords(self): # what is the logic in CP model?
+
+        
         if self.musical_input.tonality == "major":
             for chord in self.chord_vocab:
                 if chord.name == "I":
@@ -124,12 +124,10 @@ class MPModel:
             self.m.add_constraint(self.c[0] == n)
             self.m.add_constraint(self.c[self.N-1]<=max(n1))
         
-    def hard_constraint_chord_repetition(self):
-        for j in range(self.N-1):
-            self.m.add_constraint(self.c[j+1] != self.c[j])
+        
         
     def hard_constraint_chord_bass_repetition(self):
-        for j in range(self.N-1):
+       for j in range(self.N-1):
             self.m.add_constraint( (self.c[j] == self.c[j+1]) <= (self.x[3,j] != self.x[3,j+1]))
     
     def hard_constraint_adjacent_bar_chords(self):
@@ -165,26 +163,21 @@ class MPModel:
         for j in range(self.N-1):
             for c1 in range(length):
                 for c2 in range(length):
-                    self.m.add_constraint(cost0[j]>=self.m.logical_and(c1==self.c[j],c2==self.c[j+1])*self.chord_progression_costs[(c1,c2)]) 
+                    self.m.add_constraint(cost0[j]>=weight*self.m.logical_and(c1==self.c[j],c2==self.c[j+1])*self.chord_progression_costs[(c1,c2)]) 
         return cost0 
     def soft_constraint_leap_resolution(self,max_leap=10, weight=1): # leaps more than an interval of a major 6th should resolve in the opposite direction by stepwise motion(
         cost1= self.m.continuous_var_list(self.N, 0,100, "Leap resolution cost")
         for j in range(self.N-1):
-            self.m.add_constraint(cost1[j]>=self.m.sum(1-(self.x[i,j] - self.x[i,j+1] <= max_leap) for i in range(1,4) ) )
+            self.m.add_constraint(cost1[j]>=weight*self.m.sum(1-(self.x[i,j] - self.x[i,j+1] <= max_leap) for i in range(1,4) ) )
         return cost1                 
 
     def soft_constraint_melodic_movement(self):
         pass
-    
-    def soft_constraint_chord_repetition(self):
-        pass
-    
     def soft_constraint_chord_bass_repetition(self, weight=2):
         cost2= self.m.continuous_var_list(self.N, 0,100, "Chord repetition cost")
         for j in range(self.N-1):
             self.m.add_constraint(cost2[j]>=weight* (self.c[j]==self.c[j+1]))
         return cost2     
-
     def soft_constraint_adjacent_bar_chords(self):
         pass
     
@@ -204,7 +197,7 @@ class MPModel:
         cost4= self.m.continuous_var_list(self.N, 0,100, "voice crossing cost")
         for i in range(3):
             for j in range(self.N-1):
-                self.m.add_constraint(cost4[j]>= (self.x[i,j+1] <= self.x[i+1,j]-1))
+                self.m.add_constraint(cost4[j]>=weight* (self.x[i,j+1] <= self.x[i+1,j]-1))
         return cost4
     def soft_constraint_chord_spacing(self, weight=1):
         pass
@@ -212,8 +205,8 @@ class MPModel:
     def soft_constraint_distinct_notes(self,weight=1):#Chords with more distinct notes (i.e. max 3) are rewarded
         cost5= self.m.continuous_var_list(self.N, 0,100, "Distinct notes cost")
         for j in range(self.N):
-            self.m.add_constraint(cost5[j]>=-1+
-                                  self.m.sum( self.m.sum( (self.x[i,j]- self.x[k,j]==12) + (self.x[i,j]- self.x[k,j]==24) + (self.x[i,j]- self.x[k,j]==36) for i in range(3) ) for k in range(4) )
+            self.m.add_constraint(cost5[j]>=weight*(-1+
+                                  self.m.sum( self.m.sum( (self.x[i,j]- self.x[k,j]==12) + (self.x[i,j]- self.x[k,j]==24) + (self.x[i,j]- self.x[k,j]==36) for i in range(3) ) for k in range(4) ))
                                   ) 
         return cost5
     def soft_constraint_voice_crossing(self): # is a hard constraint
@@ -224,8 +217,8 @@ class MPModel:
         
         
         for j in range(self.N):
-            cost6[j]>=self.m.sum( self.x[i,j] -sub[i-1]  for i in range(1,4))
-            cost6[j]>=self.m.sum( slb[i-1]-self.x[i,j]  for i in range(1,4))
+            cost6[j]>=weight*self.m.sum( self.x[i,j] -sub[i-1]  for i in range(1,4))
+            cost6[j]>=weight*self.m.sum( slb[i-1]-self.x[i,j]  for i in range(1,4))
         return  cost6
                         
     def solve(self, log = True):
@@ -250,20 +243,9 @@ class MPModel:
         # plt.legend()
         # plt.show()   
         
-        # return the midi array for conversion
-        midi_array = [[]]
-        for _ in range(3):
-            midi_array.append([])
         
-        sol_dict = sol.get_value_dict(self.x)
-        sol_dict2 = sol.get_value_dict(self.c)
-        
-        for i, j in self.x.keys():
-            midi_array[i].append(round(sol_dict[(i,j)]))
-            for i, j in self.x.keys():
-                midi_array[i].append(round(sol_dict[(i,j)]))
-        
-        return sol, midi_array
+        print(sol)
+        return sol
         
         
     #
