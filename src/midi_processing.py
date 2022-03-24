@@ -130,7 +130,7 @@ def midi_to_array(midi_file):
     return midi_array, tempo_interval
 
 
-def array_to_midi(midi_array, instruments, beat, dest_file_path = '../outputs/model_output.mid'):
+def array_to_midi(midi_array, instruments, beat, dest_file_path = '../outputs/model_output.mid', held_notes = False, offset = 0):
     '''
     Function to convert array to midi file
 
@@ -145,8 +145,14 @@ def array_to_midi(midi_array, instruments, beat, dest_file_path = '../outputs/mo
     beat : int
         An integer representing the time length of each note in microseconds
         
-    file_name : str
-        Name of output file
+    dest_file_path : str
+        Name of output filepath and filename
+        
+    held_notes : bool
+        Whether or not to combine repeated notes into a held note
+    
+    offset : positive int
+        Number of rests to insert at the start, with each rest corresponding to 1 beat
 
     Returns
     -------
@@ -156,6 +162,9 @@ def array_to_midi(midi_array, instruments, beat, dest_file_path = '../outputs/mo
     # Check validity of instrument array
     if len(instruments) != 4:
         raise Exception('Error, length of instrument array should be 4')
+    # Check offset is positive int
+    assert isinstance(offset, int), 'Error, offset argument is not an integer'
+    assert offset >= 0, 'Error, offset argument is negative'
     
     # Create a PrettyMIDI object to store the compiled music, tempo in bpm converted from beat
     midi_output = pretty_midi.PrettyMIDI()
@@ -166,16 +175,30 @@ def array_to_midi(midi_array, instruments, beat, dest_file_path = '../outputs/mo
         instrument = pretty_midi.Instrument(program=instruments[i])
         # restart the note interval
         time = 0
+        # Add rests at the start
+        time += beat*offset/1000
+        
         # Iterate over note names, which will be converted to note number later
-        for note_number in midi_array[i]:
+        for j, note_number in enumerate(midi_array[i]):
             # check if pause, i.e. note is empty
             if note_number == None:
                 # skip a beat, extend the time
                 time += beat/1000
             else:
-                # Create a Note instance, starting at 0 and ending at 1 beat (in s)
+                beat_count = 1
+                if held_notes: #This is to indicate whether or not to combine repeated notes into 1 held note
+                    if j > 0 and note_number == midi_array[i][j-1]: #If current note is the same as previous note, continue, since the held note would have already been created
+                        # extend the time
+                        time += beat/1000
+                        continue
+                    else:
+                        k = j
+                        while k < len(midi_array[i])-1 and midi_array[i][k+1] == note_number: #This counts the number of beats a note is held for
+                            beat_count += 1
+                            k += 1
+                # Create a Note instance, starting at 0 and ending at beat_count beats (in s)
                 note = pretty_midi.Note(
-                    velocity=127, pitch = note_number + 36, start = time, end = time + beat/1000)
+                    velocity=127, pitch = note_number + 36, start = time, end = time + beat*beat_count/1000)
                 # Add it to our instrument
                 instrument.notes.append(note)
                 # extend the time
