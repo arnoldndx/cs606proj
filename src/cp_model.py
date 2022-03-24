@@ -101,15 +101,11 @@ class CPModel:
             self.m.add(self.c[0] == n)
             self.m.add(self.c[self.N-1] == n)
         elif self.musical_input.tonality == "minor":
-            n1 = []
             for chord in self.chord_vocab:
                 if chord.name == "i":
-                    n = chord.index
-                    n1.append = chord.index
-                elif chord.name == "I":
-                    n1.append = chord.index
-            self.m.add(self.c[0] == n)
-            self.m.add(self.c[self.N-1].set_domain(n1))
+                    self.m.add(self.c[0] == chord.index)
+                elif chord.name != "I":
+                    self.m.add(self.c[self.N-1] != chord.index)
         
         #First and last bass notes must be the tonic note
         self.m.add(self.x[3,0] % 12 == self.K)
@@ -338,7 +334,8 @@ class CPModel:
         self.sol_var = {'Chords': chord_sol, 'Notes': note_sol, 'Penalties': penalties}
         return self.sol_var
         
-    def export_midi(self, instruments = [20]*4, beat = 500, filepath = '../outputs'):
+    def export_midi(self, instruments = [20]*4, beat = 600, filepath = '../outputs'):
         array_to_midi(self.sol_var['Notes'], instruments, beat,
                       dest_file_path = '{}/cp_{}_{}_{}_{}.mid'.format(
-                          filepath, self.name, self.musical_input.title, self.hard_constraint_encoding, self.soft_constraint_encoding))
+                          filepath, self.name, self.musical_input.title, self.hard_constraint_encoding, self.soft_constraint_encoding),
+                     held_notes = True, offset = (self.musical_input.meter - self.musical_input.first_on_beat + 1) % 4)
