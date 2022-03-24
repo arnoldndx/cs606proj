@@ -334,7 +334,7 @@ class CPModel:
         self.sol_var = {'Chords': chord_sol, 'Notes': note_sol, 'Penalties': penalties}
         return self.sol_var
         
-    def export_midi(self, instruments = [20]*4, beat = 500, filepath = '../outputs'):
+    def export_midi(self, instruments = [20]*4, beat = 600, filepath = '../outputs'):
         array_to_midi(self.sol_var['Notes'], instruments, beat,
                       dest_file_path = '{}/cp_{}_{}_{}_{}.mid'.format(
                           filepath, self.name, self.musical_input.title, self.hard_constraint_encoding, self.soft_constraint_encoding),
