@@ -19,7 +19,7 @@ from src.chord import Chord
 from src.musical_work_input import MusicalWorkInput,Harmony
 
 from src.mp_model_for_ALNS_construction import MPModel
-import src.evaluate
+import src.evaluate_v0
 from src.midi_processing import *   
 # Importing Musical Corpus
 musical_work_df = pd.read_csv("../data/sample_input.csv")
@@ -73,7 +73,8 @@ if music.tonality=="major":
 else:
     chord_df = pd.read_csv("../data/chord_vocabulary_minor.csv", index_col = 0)
 chord_vocab = []
-for _,name, note_intervals in chord_df.itertuples():
+for name, note_intervals in chord_df.itertuples():
+#for name, note_intervals in chord_df.itertuples():
     chord_vocab.append(Chord(name, set(int(x) for x in note_intervals.split(','))))
     
 # Defining dictionary of weights for each soft constraint options:
@@ -99,7 +100,7 @@ df_soluiton=pd.DataFrame(np.array(solution))
 df_soluiton.to_csv("ALNS_start.csv", index=False, header=False)
 
 
-cost=src.evaluate.evaluate_cost(solution[:-1],solution[-1] , tonality=music.tonality, mode="L")   
+cost=src.evaluate_v0.evaluate_cost(solution[:-1],solution[-1] , tonality=music.tonality, mode="L")   
 print(cost)
 #%%
 def destroy_1(current, random_state): ## greedy worst sum-of-cost removal of 2nd, 3rd or 4th note 
@@ -111,7 +112,7 @@ def destroy_1(current, random_state): ## greedy worst sum-of-cost removal of 2nd
     for j in range(0, current.N-1, 4):
         segment=  [current.HarmonyInput[k][j:j+5] for k in range(5)] #including 1st note of next bar for evaluation
       
-        cost=src.evaluate.evaluate_cost(segment[:-1],segment[-1] ,
+        cost=src.evaluate_v0.evaluate_cost(segment[:-1],segment[-1] ,
                                         current.MusicInput.tonality, 
                                         mode="sum", 
                                         first_on_beat=1)
@@ -220,7 +221,7 @@ if __name__ == '__main__':
     lambda_ = 0.8
 
     result = alns.iterate(harmony, omegas, lambda_, criterion,
-                          iterations=60, collect_stats=True)
+                          iterations=90, collect_stats=True)
     # result
     ALNS_solution = result.best_state   
     
@@ -241,4 +242,3 @@ if __name__ == '__main__':
 
     print('ALNS Run Time: ', stop - start)  
     
-    cost=src.evaluate.evaluate_cost(ALNS_solution.HarmonyInput[:-1],ALNS_solution.HarmonyInput[-1] ,"major", mode="L")

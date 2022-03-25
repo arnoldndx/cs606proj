@@ -4,6 +4,7 @@ import sys
 
 sys.path.append('../')
 
+
 from src.ALNS.alns import ALNS, State
 import copy
 class MusicalWorkInput:
