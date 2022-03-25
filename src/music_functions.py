@@ -1,5 +1,25 @@
 import pandas as pd
 
+def infer_onset(notes):
+    '''
+    Function to infer onset of a given melody
+
+    Parameters
+    ----------
+    notes : list of int
+        A list of int corresponding to the pitch of each note
+
+    Returns
+    -------
+    onset : int
+        Integer corresponding to the index of the first note
+
+    '''
+    for i in range(len(notes)):
+        if notes[i] != None:
+            return i
+        
+
 def transpose(notes, n_semitones, mod = True, ascending = True):
     '''
     Function to transpose notes up or down
