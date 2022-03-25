@@ -25,7 +25,8 @@ for filename in os.listdir(directory):
     f = os.path.join(directory, filename)
        
     # test midi_import
-    midi_array, tempo = midi_to_array(f)
+    #midi_array, tempo = midi_to_array(f)
+    test_function(f)
     
     # test midi export
-    array_to_midi(midi_array, [0] * 4, tempo * 1000, dest_file_path = '../outputs/test_' + str(filename))
+    #array_to_midi(midi_array, [0] * 4, tempo * 1000, dest_file_path = '../outputs/test_' + str(filename))

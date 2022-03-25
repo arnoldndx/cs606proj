@@ -12,6 +12,7 @@ import sys
 import copy
 from itertools import groupby
 import numpy as np
+from src.music_functions import *
 
 import pretty_midi
 
@@ -33,8 +34,11 @@ def all_equal(iterable):
     return next(g, True) and not next(g, False)
 
 def test_function(midi_file):
+    '''
+    Function to aid debugging
+    '''
     midi_data = pretty_midi.PrettyMIDI(midi_file)
-    print('time signature: ',midi_data.time_signature_changes)
+    print('time signature: ',midi_data.time_signature_changes[1].denominator)
     print('interval length: ',round(60000/midi_data.get_tempo_changes()[1][0]))
     print('beat locations: ',midi_data.get_beats())
     print('note onsets: ',midi_data.get_onsets())
@@ -127,7 +131,22 @@ def midi_to_array(midi_file):
     
     # print(midi_array, min_interval)
     
-    return midi_array, tempo_interval
+    # infer meter
+    if (midi_data.time_signature_changes[1].denominator <= 4):
+        meter = midi_data.time_signature_changes[1].numerator
+    elif (midi_data.time_signature_changes[1].numerator%3 == 0) and (midi_data.time_signature_changes[1].numerator != 3):
+        meter = midi_data.time_signature_changes[1].numerator/3
+    else:
+        meter = midi_data.time_signature_changes[1].numerator
+    
+    # infer key, tonality
+    key, tonality = infer_key_tonality(midi_array)
+    
+    # infer first onset beat
+    onset = infer_onset(midi_array)
+    
+    
+    return midi_array, tempo_interval, meter, key, tonality, onset
 
 
 def array_to_midi(midi_array, instruments, beat, dest_file_path = '../outputs/model_output.mid', held_notes = False, offset = 0):

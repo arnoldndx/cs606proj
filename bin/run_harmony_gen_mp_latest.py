@@ -99,7 +99,7 @@ if music.tonality=="major":
 else:
     chord_df = pd.read_csv("../data/chord_vocabulary_minor.csv", index_col = 0)
 chord_vocab = []
-for _,name, note_intervals in chord_df.itertuples():
+for name, note_intervals in chord_df.itertuples():
     chord_vocab.append(Chord(name, set(int(x) for x in note_intervals.split(','))))
     
 # Defining dictionary of weights for each soft constraint options:
@@ -129,7 +129,7 @@ stop = timeit.default_timer()
 print('MP Run Time: ', stop - start) 
 
 #%%
-# import pandas as pd
-# df_soluiton=pd.DataFrame(np.array(midi_array_with_chords))
-# df_soluiton.to_csv("MP.csv", index=False, header=False)
+import pandas as pd
+df_soluiton=pd.DataFrame(np.array(midi_array_with_chords))
+df_soluiton.to_csv("MP.csv", index=False, header=False)
 
