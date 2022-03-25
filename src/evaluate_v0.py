@@ -3,7 +3,6 @@ import src.music_functions
 import pandas as pd
 
 
-
 def evaluate_cost(list_x, list_c, tonality, meter=4, first_on_beat=0, mode="L"): 
 
     N=len(list_c)
@@ -128,7 +127,7 @@ def evaluate_cost(list_x, list_c, tonality, meter=4, first_on_beat=0, mode="L"):
 
 #***************************************************************************************************************       
 
-    def soft_constraint_chord_progression( weight=1):
+    def soft_constraint_chord_progression( weight=55):
 
 
 
@@ -148,7 +147,7 @@ def evaluate_cost(list_x, list_c, tonality, meter=4, first_on_beat=0, mode="L"):
 
         pass
 
-    def soft_constraint_chord_repetition( weight=2):
+    def soft_constraint_chord_repetition( weight=4):
 
 
 
@@ -168,7 +167,7 @@ def evaluate_cost(list_x, list_c, tonality, meter=4, first_on_beat=0, mode="L"):
 
     
 
-    def soft_constraint_note_repetition( weight=2):
+    def soft_constraint_note_repetition( weight=3):
 
         cost= weight*sum(sum( (x[i,j]==x[i,j+1])*(x[i,j+1]==x[i,j+2]) 
 
@@ -186,7 +185,7 @@ def evaluate_cost(list_x, list_c, tonality, meter=4, first_on_beat=0, mode="L"):
 
     
 
-    def soft_constraint_voice_overlap(weight=1):
+    def soft_constraint_voice_overlap(weight=3):
 
 
 
@@ -198,7 +197,7 @@ def evaluate_cost(list_x, list_c, tonality, meter=4, first_on_beat=0, mode="L"):
 
     
 
-    def soft_constraint_distinct_notes(weight=1):#Chords with more distinct notes (i.e. max 3) are rewarded
+    def soft_constraint_distinct_notes(weight=9):#Chords with more distinct notes (i.e. max 3) are rewarded
 
                                  
 

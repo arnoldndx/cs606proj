@@ -123,7 +123,7 @@ filepath = '../outputs'
 hard_constraint_encoding, soft_constraint_encoding = encode_constraints(hard_constraints, soft_constraint_w_weights)
 dest_file_path = '{}/mp_{}_{}_{}_{}.mid'.format(filepath, music.title, music.tonality, hard_constraint_encoding, soft_constraint_encoding)
  
-src.midi_processing.array_to_midi(midi_array_with_chords[:4], [53]*4, 600, dest_file_path )   
+array_to_midi(midi_array_with_chords[:4], [53]*4, 600, dest_file_path )   
 stop = timeit.default_timer()
 
 print('MP Run Time: ', stop - start) 

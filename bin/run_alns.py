@@ -221,7 +221,7 @@ if __name__ == '__main__':
     lambda_ = 0.8
 
     result = alns.iterate(harmony, omegas, lambda_, criterion,
-                          iterations=100, collect_stats=True)
+                          iterations=90, collect_stats=True)
     # result
     ALNS_solution = result.best_state   
     
@@ -242,4 +242,3 @@ if __name__ == '__main__':
 
     print('ALNS Run Time: ', stop - start)  
     
-    cost=src.evaluate_v0.evaluate_cost(ALNS_solution.HarmonyInput[:-1],ALNS_solution.HarmonyInput[-1] ,"major", mode="L")
