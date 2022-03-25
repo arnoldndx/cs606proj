@@ -7,7 +7,7 @@ def infer_onset(notes):
     Parameters
     ----------
     notes : list of int
-        A list of int corresponding to the pitch of each note
+        A list of int corresponding to the pitch of each note, can also be list of lists
 
     Returns
     -------
@@ -15,9 +15,19 @@ def infer_onset(notes):
         Integer corresponding to the index of the first note
 
     '''
-    for i in range(len(notes)):
-        if notes[i] != None:
-            return i
+    if isinstance(notes[0], list):
+        onsets = []
+        for voice in notes:
+            for i in range(len(voice)):
+                if voice[i] != None:
+                    onset.append(i)
+        return min(onsets)
+    else:
+        for i in range(len(notes)):
+            if notes[i] != None:
+                return i
+            
+            
         
 
 def transpose(notes, n_semitones, mod = True, ascending = True):
