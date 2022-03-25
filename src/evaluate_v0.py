@@ -3,7 +3,6 @@ import src.music_functions
 import pandas as pd
 
 
-
 def evaluate_cost(list_x, list_c, tonality, meter=4, first_on_beat=0, mode="L"): 
 
     N=len(list_c)
