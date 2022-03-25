@@ -3,7 +3,7 @@ from docplex.mp.progress import ProgressDataRecorder
 import src.music_functions 
 #import matplotlib.pyplot as plt
 from src.music_functions import *
-class MPModel:
+class MPModelALNS:
     def __init__(self, model_name, musical_input,harmony_input, chord_vocab
                  , hard_constraints
                  , soft_constraint_w_weights
@@ -282,8 +282,10 @@ class MPModel:
          
         recorder = ProgressDataRecorder()
         self.m.add_progress_listener(recorder)
+        
         sol = self.m.solve(log_output = False)
 
+        
         midi_array = [[]]
         for _ in range(4):
             midi_array.append([])
