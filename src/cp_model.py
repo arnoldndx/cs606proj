@@ -75,14 +75,14 @@ class CPModel:
         for j in range(self.N):
             self.m.add(self.x[0,j] == self.musical_input.melody[j])
     
-    def hard_constraint_voice_range(self, lb = [19, 12, 5], ub = [38, 28, 26]):
+    def hard_constraint_voice_range(self, lb = [17, 12, 4], ub = [41, 36, 28]):
         #voice_ranges = {1: (19, 38), 2: (12, 28), 3: (5, 26)}
         for i in range(1,4):
             for j in range(self.N):
                 self.m.add(self.x[i,j] >= lb[i-1])
                 self.m.add(self.x[i,j] <= ub[i-1])
     
-    def hard_constraint_chord_membership(self, lb = 5, ub = 60): #All notes must belong to the same chord
+    def hard_constraint_chord_membership(self, lb = 4, ub = 60): #All notes must belong to the same chord
         chord_vocab_ext = []
         for chord in self.chord_vocab:
             chord_vocab_ext.append(extend_range(transpose(chord.note_intervals, self.K)))
@@ -275,7 +275,7 @@ class CPModel:
                 self.m.add(self.m.if_then(self.x[i,j] < self.x[i+1,j],
                                         self.costs['voice crossing'][1,j] >= self.soft_constraints_weights['voice crossing']))
     
-    def soft_constraint_voice_range(self, lb = [19, 12, 5], ub = [38, 28, 26], threshold = 2):
+    def soft_constraint_voice_range(self, lb = [17, 12, 4], ub = [41, 36, 28], threshold = 2):
         for i in range(1,4):
             for j in range(self.N):
                 self.m.add(self.m.if_then(self.m.logical_or(self.x[i,j] < lb[i-1] + threshold, self.x[i,j] > ub[i-1] - threshold),
@@ -346,4 +346,10 @@ class CPModel:
         array_to_midi(self.sol_var['Notes'], instruments, beat,
                       dest_file_path = '{}/cp_{}_{}_{}_{}.mid'.format(
                           filepath, self.name, self.musical_input.title, self.hard_constraint_encoding, self.soft_constraint_encoding),
-                     held_notes = True, offset = (self.musical_input.meter - self.musical_input.first_on_beat + 1) % 4)
+                     held_notes = False, offset = (self.musical_input.meter - self.musical_input.first_on_beat + 1) % 4)
+        
+    def export_csv(self, filepath = '../outputs'):
+        df_solution_notes = pd.DataFrame(np.array(self.sol_var['Notes']))
+        df_solution_chords = pd.DataFrame(np.array(self.sol_var['Chords']).reshape((1,-1)))
+        df_solution = pd.concat([df_solution_notes, df_solution_chords], ignore_index = True)
+        df_solution.to_csv('{}/cp_{}_{}_{}_{}.csv'.format(filepath, self.name, self.musical_input.title, self.hard_constraint_encoding, self.soft_constraint_encoding), index = False, header = False)

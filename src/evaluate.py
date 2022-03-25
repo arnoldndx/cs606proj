@@ -166,7 +166,7 @@ def evaluate_cost(list_x, list_c, key, tonality, meter = 4, first_on_beat = 0, m
 
     ### Hard Constraints
 
-    def hard_constraint_voice_range(weight = hard_constraint_weight, lb = [19, 12, 5], ub = [38, 28, 26]):
+    def hard_constraint_voice_range(weight = hard_constraint_weight, lb = [17, 12, 4], ub = [41, 36, 28]):
         assert weight > 0
         cost = 0
         for i in range(1,4):
@@ -291,7 +291,7 @@ def evaluate_cost(list_x, list_c, key, tonality, meter = 4, first_on_beat = 0, m
     def soft_constraint_voice_crossing(weight = soft_constraint_w_weights['voice crossing']):
         return voice_crossing(weight)
     
-    def soft_constraint_voice_range(weight = soft_constraint_w_weights['voice range'], lb = [19, 12, 5], ub = [38, 28, 26], threshold = 2):
+    def soft_constraint_voice_range(weight = soft_constraint_w_weights['voice range'], lb = [17, 12, 4], ub = [41, 36, 28], threshold = 2):
         assert weight > 0
         cost = sum((x[i,j] < (lb[i-1] + threshold)) + (x[i,j] > (ub[i-1] - threshold)) for i in range(1,4) for j in range(N))
         return weight * cost
