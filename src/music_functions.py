@@ -53,9 +53,9 @@ def transpose(notes, n_semitones, mod = True, ascending = True):
 
     '''
     if ascending: #ascending is a boolean
-        diff = n_semitones
+        diff = int(n_semitones)
     else:
-        diff = -n_semitones
+        diff = int(-n_semitones)
     try:
         result = [note + diff for note in notes]
         if mod:
@@ -313,7 +313,7 @@ def decode_constraints(hard_constraint_string, soft_constraint_string, data_type
         else:
             hard_constraints[hard_constraint_options[i]] = bool(s)
 
-    for i, c in enumerate(soft_constrint_options):
+    for i, c in enumerate(soft_constraint_options):
         w = int(soft_constraint_string[i:2*(i+1)])
         if w == 0:
             w = -1
@@ -322,4 +322,32 @@ def decode_constraints(hard_constraint_string, soft_constraint_string, data_type
         else:
             soft_constraint_weights[c] = w
     return hard_constraints, soft_constraint_weights
+
+def func_get_best_progression_chord(filename, direction="fwd"):  #"chord_progression_major_v1.csv"
+
+    df=pd.read_csv("../data/"+filename, header=1, index_col=0)
+    N_chords=len(df)
+    reset_df=df.stack().reset_index()
+    best_chord={}
+    if direction=="fwd":
+        for i in range(N_chords):
+            min_cost=1
+            
+            for index,row in reset_df.iterrows(): 
+                if int(row["Chord_1"])==i and int(row["level_1"])!= int(row["Chord_1"]) and row[0]< min_cost:
+                    min_cost=row[0]
+                    best_chord[i]= int(row["level_1"])
+    else: #backward
+        for i in range(N_chords):
+            min_cost=1
+            
+            for index,row in reset_df.iterrows(): 
+                if int(row["level_1"])==i and int(row["level_1"])!= int(row["Chord_1"])  and row[0]< min_cost:
+                    min_cost=row[0]
+                    best_chord[i]= int(row["Chord_1"])           
+    return best_chord
+
+if __name__ == '__main__':
+    print(func_get_best_progression_chord("chord_progression_major_v1.csv" ))
+    print(func_get_best_progression_chord("chord_progression_major_v1.csv" ,"bwd"))
             

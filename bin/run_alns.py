@@ -73,9 +73,9 @@ if music.tonality=="major":
 else:
     chord_df = pd.read_csv("../data/chord_vocabulary_minor.csv", index_col = 0)
 chord_vocab = []
-for name, note_intervals in chord_df.itertuples():
+for index, name, note_intervals in chord_df.itertuples():
 #for name, note_intervals in chord_df.itertuples():
-    chord_vocab.append(Chord(name, set(int(x) for x in note_intervals.split(','))))
+    chord_vocab.append(Chord(index, name, set(int(x) for x in note_intervals.split(','))))
     
 # Defining dictionary of weights for each soft constraint options:
 weight_df = pd.read_csv("../data/soft_constraint_weights.csv")

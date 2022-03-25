@@ -29,7 +29,7 @@ from src.cp_model import CPModel
 from src.ALNS.alns import ALNS
 from src.ALNS.alns.criteria import HillClimbing, SimulatedAnnealing, RecordToRecordTravel
 import src.evaluate_v0
-from src.mp_model_for_ALNS_construction import MPModel
+from src.mp_model_for_ALNS_construction import MPModelALNS
 import src.evaluate_v0
 
 
@@ -69,10 +69,10 @@ elif args.input_melody[-3:] == 'mid':
     #melody, tempo_interval, meter, key, tonality, first_on_beat = midi_to_array(input_midi)
     melody, tempo_interval = midi_to_array_quick(input_midi)
     filename = str.split(str.split(args.input_melody,'/')[-1],'_')
-    first_on_beat = str.split(filename[-1],'.')[0]
+    first_on_beat = int(str.split(filename[-1],'.')[0])
     tonality = filename[-2]
-    key = filename[-3]
-    meter = filename[-4]
+    key = int(filename[-3])
+    meter = int(filename[-4])
     song_title = '_'.join(filename[2:-4])
     musical_corpus = []
     musical_corpus.append(MusicalWorkInput(song_title, meter, key, tonality, first_on_beat, [-100 if note is None else note for note in melody[0]]))
@@ -135,17 +135,17 @@ if args.method == 'mp':
         chord_df = pd.read_csv("../data/chord_vocabulary_minor.csv", index_col = 0)
     chord_vocab = []
     for index, name, note_intervals in chord_df.itertuples():
-        chord_vocab.append(Chord(name, set(int(x) for x in note_intervals.split(','))))
+        chord_vocab.append(Chord(index, name, set(int(x) for x in note_intervals.split(','))))
         
         
-    file_progression_cost="chord_progression_major_v1.csv" if music.tonality=="major" else "chord_progression_minor_v1.csv"
+    file_progression_cost="../data/chord_progression_major_v1.csv" if music.tonality=="major" else "../data/chord_progression_minor_v1.csv"
     # Model
     mp_model = MPModel("test", music, chord_vocab,
                         #hard_constraints, 
                         soft_constraint_w_weights, 
                         file_progression_cost=file_progression_cost,
                         timelimit=600)
-    
+        
     midi_array_with_chords = mp_model.solve()
     
     # generate df_solution for csv solution gen
@@ -305,14 +305,14 @@ elif args.method == 'alns':
     chord_vocab = []
     for index, name, note_intervals in chord_df.itertuples():
     #for name, note_intervals in chord_df.itertuples():
-        chord_vocab.append(Chord(name, set(int(x) for x in note_intervals.split(','))))
+        chord_vocab.append(Chord(index, name, set(int(x) for x in note_intervals.split(','))))
         
  
     file_progression_cost="chord_progression_major_v1.csv" if music.tonality=="major" else "chord_progression_minor_v1.csv"
     dic_bestchord_fwd=src.music_functions.func_get_best_progression_chord(file_progression_cost, "fwd")
     dic_bestchord_bwd=src.music_functions.func_get_best_progression_chord(file_progression_cost, "bwd")
 
-
+    
     # Construction heuristic (MP model)
     mp_model = MPModel("test", music,[], chord_vocab,
                         hard_constraints, 
