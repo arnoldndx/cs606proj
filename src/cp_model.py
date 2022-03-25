@@ -101,15 +101,11 @@ class CPModel:
             self.m.add(self.c[0] == n)
             self.m.add(self.c[self.N-1] == n)
         elif self.musical_input.tonality == "minor":
-            n1 = []
             for chord in self.chord_vocab:
                 if chord.name == "i":
-                    n = chord.index
-                    n1.append = chord.index
-                elif chord.name == "I":
-                    n1.append = chord.index
-            self.m.add(self.c[0] == n)
-            self.m.add(self.c[self.N-1].set_domain(n1))
+                    self.m.add(self.c[0] == chord.index)
+                elif chord.name != "I":
+                    self.m.add(self.c[self.N-1] != chord.index)
         
         #First and last bass notes must be the tonic note
         self.m.add(self.x[3,0] % 12 == self.K)
@@ -134,15 +130,19 @@ class CPModel:
                 self.m.add(self.x[i,j] >= self.x[i+1,j])
     
     def hard_constraint_parallel_movement(self, disallowed_intervals = [0, 7]):
+        disallowed_intervals_ext = []
+        for k in range(-1, 3):
+            if k != 0:
+                disallowed_intervals_ext.extend([interval + 12 * k for interval in disallowed_intervals])
         for j in range(self.N-1):
             for i1 in range(4):
                 for i2 in range(4):
                     if i2 != i1:
-                        for interval in disallowed_intervals:
+                        for interval in disallowed_intervals_ext:
                             self.m.add(self.m.if_then(self.m.logical_and(
-                                self.m.logical_and(self.x[i1,j] >= self.x[i2,j], self.x[i1,j+1] >= self.x[i2,j+1]),
-                                (self.x[i1,j] - self.x[i2,j])%12 == interval),
-                                                      (self.x[i1,j+1] - self.x[i2,j+1])%12 != interval))
+                                (self.x[i1,j] - self.x[i2,j]) == interval,
+                                self.x[i1,j] != self.x[i1,j+1]),
+                                                      (self.x[i1,j+1] - self.x[i2,j+1]) != interval))
 
     def hard_constraint_chord_spacing(self, max_spacing = [12, 12, 16]):
         for j in range(self.N):
@@ -183,12 +183,12 @@ class CPModel:
         for j in range(self.N-1):
             self.m.add(self.m.if_then(self.m.logical_and(self.c[j] == self.c[j+1], self.x[3,j] == self.x[3,j+1]),
                                       self.costs['chord bass repetition'][3,j] >= self.soft_constraints_weights['chord bass repetition']))
-        
     
     def soft_constraint_leap_resolution(self):
         pass
 
-    def soft_constraint_melodic_movement(self, leap_interval = {1: 12, 2: 12, 3: 16}):
+    def soft_constraint_melodic_movement(self):
+        #This is continuous method. If binary method, leap_interval = {1: 12, 2: 12, 3: 16}
         for j in range(self.N-1):
             for i in range(1,4):
                 self.m.add(self.costs['melodic movement'][i,j] >= self.m.abs(self.x[i,j+1] - self.x[i,j]) / 12 * self.soft_constraints_weights['melodic movement'])
@@ -200,23 +200,27 @@ class CPModel:
                                           self.costs['note repetition'][i,j] >= self.soft_constraints_weights['note repetition']))
     
     def soft_constraint_parallel_movement(self, discouraged_intervals = [0, 7]):
+        discouraged_intervals_ext = discouraged_intervals
+        for k in range(-1, 3):
+            if k != 0:
+                discouraged_intervals_ext.extend(discouraged_intervals + 12 * k)
         for j in range(self.N-1):
             for i1 in range(4):
                 for i2 in range(4):
-                    for interval in discouraged_intervals:
-                        self.m.add(self.m.if_then(self.m.logical_and(
-                            self.m.logical_and(self.x[i1,j] >= self.x[i2,j], self.x[i1,j+1] >= self.x[i2,j+1]),
-                            self.m.logical_and((self.x[i1,j] - self.x[i2,j])%12 == interval,
-                            (self.x[i1,j+1] - self.x[i2,j+1])%12 == interval)),
-                                   self.costs['parallel movement'][i1,j] >= self.soft_constraints_weights['parallel movement']))
+                    if i1 < i2:
+                        for interval in discouraged_intervals_ext:
+                            self.m.add(self.m.if_then(self.m.logical_and(
+                                self.m.logical_and(
+                                    self.x[i1,j] - self.x[i2,j] == interval,
+                                    self.x[i1,j+1] - self.x[i2,j+1] == interval),
+                                self.x[i1,j] != self.x[i1,j+1]),
+                                                      self.costs['parallel movement'][i1,j] >= self.soft_constraints_weights['parallel movement']))
     
     def soft_constraint_voice_overlap(self):
         for j in range(self.N-1):
-            for i1 in range(4):
-                for i2 in range(4):
-                    if i2 - i1 == 1:
-                        self.m.add(self.m.if_then(self.m.logical_and(self.x[i1,j] > self.x[i2,j], self.x[i2,j+1] > self.x[i1,j]),
-                                                  self.costs['voice overlap'][i1,j] >= self.soft_constraints_weights['voice overlap']))
+            for i in range(3):
+                self.m.add(self.m.if_then(self.m.logical_and(self.x[i,j] > self.x[i+1,j], self.x[i+1,j+1] > self.x[i,j]),
+                                          self.costs['voice overlap'][i,j] >= self.soft_constraints_weights['voice overlap']))
     
     def soft_constraint_adjacent_bar_chords(self):
         for j in range(1,self.N):
@@ -338,7 +342,8 @@ class CPModel:
         self.sol_var = {'Chords': chord_sol, 'Notes': note_sol, 'Penalties': penalties}
         return self.sol_var
         
-    def export_midi(self, instruments = [20]*4, beat = 500, filepath = '../outputs'):
+    def export_midi(self, instruments = [20]*4, beat = 600, filepath = '../outputs'):
         array_to_midi(self.sol_var['Notes'], instruments, beat,
                       dest_file_path = '{}/cp_{}_{}_{}_{}.mid'.format(
-                          filepath, self.name, self.musical_input.title, self.hard_constraint_encoding, self.soft_constraint_encoding))
+                          filepath, self.name, self.musical_input.title, self.hard_constraint_encoding, self.soft_constraint_encoding),
+                     held_notes = True, offset = (self.musical_input.meter - self.musical_input.first_on_beat + 1) % 4)

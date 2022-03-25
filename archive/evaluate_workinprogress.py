@@ -1,8 +1,8 @@
 from src.music_functions import *
 from src.chord import *
 import pandas as pd
-
-def evaluate_cost(list_x, list_c, key, tonality, meter = 4, first_on_beat = 0, mode = "D",
+#%%
+def evaluate_cost(list_x, list_c, key, tonality, meter = 4, first_on_beat = 0, mode="L",
                   chord_vocab = None,
                   chord_progression_penalties = None,
                   hard_constraints = None, hard_constraint_weight = 1000,
@@ -23,7 +23,7 @@ def evaluate_cost(list_x, list_c, key, tonality, meter = 4, first_on_beat = 0, m
     first_on_beat : 0 to 3, optional
         The default is 0.
     mode : string, optional
-        The default is "D".
+        The default is "L".
         If "L": return will be a list of sum-of-cost for each hard/soft constraint
         If "D": return will be a dictionary of sum-of-cost for each hard/soft constraint
         Otherwise, : return will be one number,sum of all costs for all constraints
@@ -51,7 +51,6 @@ def evaluate_cost(list_x, list_c, key, tonality, meter = 4, first_on_beat = 0, m
     x = {(i,j): list_x[i][j] for i in range(4) for j in range(N)} 
 
     #Chord Vocab
-    #To avoid reading data for every evaluate function call, the chord_vocab is provided as an optional argument
     if chord_vocab is None:
         chord_df_major = pd.read_csv("../data/chord_vocabulary_major.csv", index_col = 0)
         chord_df_minor = pd.read_csv("../data/chord_vocabulary_minor.csv", index_col = 0)
@@ -63,7 +62,6 @@ def evaluate_cost(list_x, list_c, key, tonality, meter = 4, first_on_beat = 0, m
         chord_vocab = chord_vocab_major if tonality == "major" else chord_vocab_minor
     
     #Chord Progression Costs
-    #To avoid reading data for every evaluate function call, the chord progression costs is provided as an optional argument
     if chord_progression_penalties is None:
         penalties_chord_progression_major = pd.read_csv("../data/chord_progression_major.csv", header = 1, index_col = 0)
         penalties_chord_progression_minor = pd.read_csv("../data/chord_progression_minor.csv", header = 1, index_col = 0)
@@ -83,7 +81,6 @@ def evaluate_cost(list_x, list_c, key, tonality, meter = 4, first_on_beat = 0, m
         hard_constraint_w_weights = {x: hard_constraint_weight if hard_constraints[x] else 0 for x in hard_constraint_options}
     
     #Soft Constraint Weights
-    #Provide argument to avoid reading daa for every evaluate function call
     if soft_constraint_weights is None:
         weight_df = pd.read_csv("../data/soft_constraint_weights_temp.csv")
         soft_constraint_w_weights={}
@@ -92,6 +89,15 @@ def evaluate_cost(list_x, list_c, key, tonality, meter = 4, first_on_beat = 0, m
     else:
         soft_constraint_w_weights = soft_constraint_weights
     assert sum(v for v in soft_constraint_w_weights.values() if v > 0) == 100
+           
+    # Importing Chord Vocabulary
+    # if tonality=="major":
+    #     chord_df = pd.read_csv("../data/chord_vocabulary_major.csv", index_col = 0)
+    # else:
+    #     chord_df = pd.read_csv("../data/chord_vocabulary_minor.csv", index_col = 0)
+    # chord_vocab = []
+    # for name, note_intervals in chord_df.itertuples():
+    #     chord_vocab.append(Chord(name, set(int(x) for x in note_intervals.split(','))))
 
 #***************************************************************************************************************  
 
@@ -308,9 +314,7 @@ def evaluate_cost(list_x, list_c, key, tonality, meter = 4, first_on_beat = 0, m
     
     def soft_constraint_chord_distribution(weight = soft_constraint_w_weights['chord distribution']):
         return chord_distribution(weight)
-
-#***************************************************************************************************************       
-
+    
     #All Constraint Options
     hard_constraints = {'voice range': hard_constraint_voice_range,
                         'chord membership': hard_constraint_chord_membership,
@@ -341,8 +345,12 @@ def evaluate_cost(list_x, list_c, key, tonality, meter = 4, first_on_beat = 0, m
                         'second inversion': soft_constraint_second_inversion,
                         'first inversion': soft_constraint_first_inversion,
                         'chord distribution': soft_constraint_chord_distribution}
-
-#***************************************************************************************************************       
+    for k, v in hard_constraint_w_weights.items():
+        if v > 0:
+            hard_constraints[k]()
+    for k, v in soft_constraint_w_weights.items():
+        if v > 0:
+            soft_constraints[k]()
     
     #Compiling Result
     result = {'hard constraint {}'.format(k): hard_constraints[k]() if v > 0 else 0 for k, v in hard_constraint_w_weights.items()}
@@ -360,3 +368,6 @@ def evaluate_cost(list_x, list_c, key, tonality, meter = 4, first_on_beat = 0, m
             return result_list
         else:
             return sum(result_list)
+
+#cost=src.evaluate.evaluate_cost(solution[:-1],solution[-1] ,"major", mode="L")   
+#print(cost)            
