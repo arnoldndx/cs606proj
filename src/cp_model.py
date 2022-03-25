@@ -326,8 +326,8 @@ class CPModel:
 
     def solve(self, **kwargs):
         sol = self.m.solve(**kwargs)
-        print(sol.get_objective_values())
-        print(sol.print_solution())
+        #print(sol.get_objective_values())
+        #print(sol.print_solution())
         self.sol = sol
         return sol
     

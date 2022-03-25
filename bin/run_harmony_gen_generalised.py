@@ -11,6 +11,7 @@ import pandas as pd
 import timeit
 import argparse
 import logging
+import copy
 
 sys.path.append('../')
 
@@ -48,6 +49,7 @@ parser.add_argument('--weights', type = str, default = 'defined', choices=['defi
 parser.add_argument('--weights_data', type = str, default = "../data/soft_constraint_weights_temp.csv",  help = 'Filepath for weights training data. Should be either a csv file for defined weights,'
                                                         'or a folder containing midi files for trained wweights. Data should be in ../data/')
 parser.add_argument('--hard_constraints_choice', type = str, default = '../data/hard_constraint_choice.csv', help = 'Filepath for hard constraint choices')
+parser.add_argument('--time_limit', type = int, default = 600, help = 'Time limit for iterations (MP/CP) or Iteration limit for ALNS')
 parser.add_argument('--input_melody', type = str, default = '../data/test_melody.mid', help = "Filepath for the input melody. Valid filetypes: .csv, .mid")
 
 #%%
@@ -144,7 +146,7 @@ if args.method == 'mp':
                         #hard_constraints, 
                         soft_constraint_w_weights, 
                         file_progression_cost=file_progression_cost,
-                        timelimit=600)
+                        timelimit=args.time_limit)
         
     midi_array_with_chords = mp_model.solve()
     
@@ -180,10 +182,6 @@ elif args.method == 'cp':
     
     # Model
     
-    print('*'*20)
-    print('Work: {}'.format(music.title))
-    print('*'*20)
-    
     if music.tonality == 'major':
         penalties_chord_progression = penalties_chord_progression_major
         chord_vocab = chord_vocab_major
@@ -197,14 +195,17 @@ elif args.method == 'cp':
                        soft_constraint_w_weights)
     
     #Solving Model
-    solution = cp_model.solve(log_output = True, TimeLimit = 600, LogVerbosity = 'Verbose')
+    solution = cp_model.solve(log_output = True, TimeLimit = args.time_limit, LogVerbosity = 'Verbose')
     result = cp_model.get_solution()
           
     # generate df_solution for csv solution gen
-    df_solution = pd.DataFrame(np.array(results['Notes'].append(results['Chords'])))
+    solved_harmony = copy.deepcopy(result['Notes'])
+    solved_harmony.append(result['Chords'])
+                                            
+    df_solution = pd.DataFrame(np.array(solved_harmony))
     
     # generate midi_array for midi gen
-    midi_array = results['Notes']
+    midi_array = result['Notes']
 #%%    
 elif args.method == 'alns':
     #%%    
@@ -308,24 +309,26 @@ elif args.method == 'alns':
         chord_vocab.append(Chord(index, name, set(int(x) for x in note_intervals.split(','))))
         
  
-    file_progression_cost="chord_progression_major_v1.csv" if music.tonality=="major" else "chord_progression_minor_v1.csv"
+    file_progression_cost = "chord_progression_major_v1.csv" if music.tonality == "major" else "chord_progression_minor_v1.csv"
     dic_bestchord_fwd=src.music_functions.func_get_best_progression_chord(file_progression_cost, "fwd")
     dic_bestchord_bwd=src.music_functions.func_get_best_progression_chord(file_progression_cost, "bwd")
 
-    
+
     # Construction heuristic (MP model)
-    mp_model = MPModel("test", music,[], chord_vocab,
+    mp_model = MPModel("test", music, [], chord_vocab,
                         hard_constraints, 
                         soft_constraint_w_weights, 
-                        file_progression_cost=file_progression_cost
-                        ,timelimit=60)
+                        file_progression_cost = file_progression_cost,
+                        timelimit=60)
+    
+    
     solution = mp_model.solve()
 
     
     ini = solution.copy()
     # construct random initialized solution
     harmony = Harmony(music, ini)
-    print("ALNS - Initial solution objective is {}.".format(harmony.objective()))
+    logger.info(f'ALNS - Initial solution objective is {harmony.objective()}')
   
     # ALNS
     random_state = rnd.RandomState(606)
@@ -346,13 +349,13 @@ elif args.method == 'alns':
     lambda_ = 0.8
 
     result = alns.iterate(harmony, omegas, lambda_, criterion,
-                          iterations=60, collect_stats=True)
+                          iterations=args.time_limit, collect_stats=True)
     # result
     ALNS_solution = result.best_state   
     
     df_solution = pd.DataFrame(np.array(ALNS_solution.HarmonyInput))
     
-    print('Best heuristic objective is {}.'.format(ALNS_solution.objective()))
+    logger.info(f'Best heuristic objective is {ALNS_solution.objective()}')
     
     # extract solution
     midi_array = ALNS_solution.HarmonyInput[:4]
@@ -360,14 +363,13 @@ elif args.method == 'alns':
 # Get the stop time
 stop = timeit.default_timer()
 
+run_time = stop - start
+
 # print run time
-print('Run Time: ', stop - start)  
+logger.info(f'==============================================')
+logger.info(f'Run Time: {run_time}')  
 
 #%%
-# generate the solution as a midi file
-logger.info(f'==============================================')
-logger.info(f'Output melody written to: {results_path}')
-
 # define the destination and name of file
 filepath = '../outputs'
 hard_constraint_encoding, soft_constraint_encoding = src.music_functions.encode_constraints(hard_constraints, soft_constraint_w_weights)
@@ -379,12 +381,19 @@ dest_file_path = '{}/{}_{}_{}_{}_{}.mid'.format(filepath,
                                                 soft_constraint_encoding)
 
 # generate the solution as a midi file
-array_to_midi(midi_array, [53]*4, 600)
+logger.info(f'==============================================')
+logger.info(f'Writing outputs...')
+
+# generate the solution as a midi file
+array_to_midi(midi_array, [53]*4, 600, dest_file_path=dest_file_path)
 
 # generate solution as a csv
-df_solution.to_csv('{}/{}_{}_{}_{}_{}.mid'.format(filepath, 
+df_solution.to_csv('{}/{}_{}_{}_{}_{}.csv'.format(filepath, 
                                                   args.method, 
                                                   music.title, 
                                                   music.tonality, 
                                                   hard_constraint_encoding, 
                                                   soft_constraint_encoding), index=False, header=False)
+
+logger.info(f'==============================================')
+logger.info(f'Output melody written to: {dest_file_path}')
