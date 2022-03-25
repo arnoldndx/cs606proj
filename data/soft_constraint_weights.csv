@@ -1,14 +1,18 @@
-soft_constraints,weight
-chord progression,1
-chord repetition,2
-chord bass repetition,-1
-leap resolution,1
-melodic movement,-1
-note repetition,2
+soft_constraint,weight
+chord progression,50
+chord repetition,4
+chord bass repetition,3
+leap resolution,-1
+melodic movement,8
+note repetition,3
 parallel movement,-1
-voice overlap,1
+voice overlap,3
 adjacent bar chords,-1
 chord spacing,-1
-distinct notes,1
+distinct notes,10
+incomplete chord,-1
 voice crossing,-1
 voice range,1
+second inversion,13
+first inversion,1
+chord distribution,4
