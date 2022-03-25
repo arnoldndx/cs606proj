@@ -373,12 +373,13 @@ logger.info(f'Run Time: {run_time}')
 # define the destination and name of file
 filepath = '../outputs'
 hard_constraint_encoding, soft_constraint_encoding = src.music_functions.encode_constraints(hard_constraints, soft_constraint_w_weights)
-dest_file_path = '{}/{}_{}_{}_{}_{}.mid'.format(filepath, 
-                                                args.method, 
-                                                music.title, 
-                                                music.tonality, 
-                                                hard_constraint_encoding, 
-                                                soft_constraint_encoding)
+dest_file_path = '{}/{}_{}_{}_{}_{}_{}.mid'.format(filepath,
+                                                   args.file,
+                                                   args.method,
+                                                   music.title,
+                                                   music.tonality,
+                                                   hard_constraint_encoding,
+                                                   soft_constraint_encoding)
 
 # generate the solution as a midi file
 logger.info(f'==============================================')
@@ -388,12 +389,13 @@ logger.info(f'Writing outputs...')
 array_to_midi(midi_array, [53]*4, 600, dest_file_path=dest_file_path)
 
 # generate solution as a csv
-df_solution.to_csv('{}/{}_{}_{}_{}_{}.csv'.format(filepath, 
-                                                  args.method, 
-                                                  music.title, 
-                                                  music.tonality, 
-                                                  hard_constraint_encoding, 
-                                                  soft_constraint_encoding), index=False, header=False)
+df_solution.to_csv('{}/{}_{}_{}_{}_{}_{}.csv'.format(filepath,
+                                                     args.file,
+                                                     args.method,
+                                                     music.title,
+                                                     music.tonality,
+                                                     hard_constraint_encoding,
+                                                     soft_constraint_encoding), index=False, header=False)
 
 logger.info(f'==============================================')
 logger.info(f'Output melody written to: {dest_file_path}')
