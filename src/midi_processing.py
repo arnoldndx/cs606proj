@@ -46,7 +46,95 @@ def test_function(midi_file):
     print('note starts (in beats): ',[[round(note.start/round(60/midi_data.get_tempo_changes()[1][0],3),4) for note in instrument.notes] for instrument in midi_data.instruments])
     return
 
-def midi_to_array(midi_file):
+def midi_to_array_quick(midi_file):
+    '''
+    Function to convert midi file to array for processing.
+    
+    Parameters
+    ----------
+    midi_file : str
+        File path of the midi file
+
+    Returns
+    -------
+    midi_array : list
+        Array of notes (int) standardised to a constant beat
+
+    '''
+    midi_data = pretty_midi.PrettyMIDI(midi_file)
+    
+    # get time interval (in microseconds)
+    
+    # confirm that there are no tempo changes in the music (i.e. tempo change only occurs once at start)
+    if len(midi_data.get_tempo_changes()[0]) > 1:
+        raise Exception(f'There are tempo changes in {midi_file}, do not use')
+    
+    # convert the tempo into a time interval (s)
+    tempo_interval = 60/midi_data.get_tempo_changes()[1][0]
+   
+    # create a set of timesteps
+    time_steps = [round(x,3) for x in midi_data.get_beats()]
+    
+    # pad the beats to the end of the song
+    while time_steps[-1] <= midi_data.get_end_time():    
+        time_steps.append(round(time_steps[-1] + tempo_interval,3))
+    
+    
+    # create midi_array as an array of notes with a constant beat
+    midi_array = []
+    
+    for instrument in midi_data.instruments:
+        # voice should have a length corresponding to the number of beat locations
+        voice = [None] * len(time_steps)
+        
+        ''' for troubleshooting
+        # notes_check = []
+        '''
+        for note in instrument.notes:
+            '''for troubleshooting
+            # notes_check.append([round(note.start,3),round(note.end,3),note.pitch-36])
+            '''
+            # check if the start of the note corresponds to a beat location
+            if round(note.start,3) in time_steps:
+                idx = time_steps.index(round(note.start,3))
+                while time_steps[idx] < round(note.end,3):
+                    voice[idx] = note.pitch - 36 # transpose to mid C = 24
+                    idx += 1
+            # note may not start on a timestep, but may last longer than a beat
+            elif (note.end - note.start) >= tempo_interval:
+                # print('this note starts mid-beat: ',(note.start,note.end,note.pitch-36))
+                idx = time_steps.index(round(note.start,3) - round(tempo_interval/2,3))
+                while time_steps[idx] < round(note.end,3):
+                    voice[idx] = note.pitch - 36 # transpose to mid C = 24
+                    idx += 1
+        
+        ''' for troubleshooting
+        print('check the notes: ',notes_check)
+        capture_check = []
+        for i in range(len(time_steps)):
+            capture_check.append((time_steps[i],voice[i]))
+        print('check what got captured: ', capture_check)
+        '''
+        
+        # add voice to midi array
+        midi_array.append(voice)
+    
+    # check that all voices have same length
+    lengths = []
+    for voice in midi_array:
+        lengths.append(len(voice))
+        
+    # print('length of each voice: ',lengths)
+    
+    if not all_equal(lengths):
+        raise Exception('Error in array output, not all voices have same length')
+    
+    # print(midi_array, min_interval)
+    
+   
+    return midi_array, tempo_interval
+
+def midi_to_array_ideal(midi_file):
     '''
     Function to convert midi file to array for processing.
     
@@ -132,12 +220,12 @@ def midi_to_array(midi_file):
     # print(midi_array, min_interval)
     
     # infer meter
-    if (midi_data.time_signature_changes[1].denominator <= 4):
-        meter = midi_data.time_signature_changes[1].numerator
-    elif (midi_data.time_signature_changes[1].numerator%3 == 0) and (midi_data.time_signature_changes[1].numerator != 3):
-        meter = midi_data.time_signature_changes[1].numerator/3
+    if (midi_data.time_signature_changes[0].denominator <= 4):
+        meter = midi_data.time_signature_changes[0].numerator
+    elif (midi_data.time_signature_changes[0].numerator%3 == 0) and (midi_data.time_signature_changes[0].numerator != 3):
+        meter = midi_data.time_signature_changes[0].numerator/3
     else:
-        meter = midi_data.time_signature_changes[1].numerator
+        meter = midi_data.time_signature_changes[0].numerator
     
     # infer key, tonality
     key, tonality = infer_key_tonality(midi_array)
