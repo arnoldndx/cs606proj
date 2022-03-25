@@ -9,14 +9,9 @@ import numpy.random as rnd
 import pandas as pd
 
 import sys
-#sys.path.append('./ALNS')
+
 sys.path.append('../')
-#sys.path.append('../src/ALNS')
 
-#Standard Imports
-
-
-#Custom Imports
 from src.ALNS.alns import ALNS
 from src.ALNS.alns.criteria import HillClimbing, SimulatedAnnealing, RecordToRecordTravel
 
@@ -41,8 +36,9 @@ for i, title, meter, key, tonality, first_on_beat, melody in musical_work_df.ite
 # 5 Ach, was soll ich Sunder machen
 
 # =============================================================================
-
-music=musical_corpus[5]
+import timeit
+start = timeit.default_timer()
+music=musical_corpus[-1]
 print(music.title, music.key, music.tonality, 
       music.first_on_beat,music.melody, music.reference_note)
 
@@ -62,10 +58,12 @@ hard_constraint_options = ['musical input', 'voice range', 'chord membership', '
                           'chord spacing', 'incomplete chord', 'chord distribution']
 hard_constraints = {x: True if x in ['musical input', 'voice range', 'chord membership', 'first last chords', 'voice crossing', 'parallel movement', 'chord spacing', 'incomplete chord']
                     else False for x in hard_constraint_options}
+
 soft_constraint_options = ['chord progression', 'chord repetition', 'chord bass repetition', 'leap resolution',
                            'melodic movement', 'note repetition', 'parallel movement', 'voice overlap', 'adjacent bar chords',
                            'chord spacing', 'distinct notes', 'incomplete chord', 'voice crossing', 'voice range',
                            'second inversion', 'chord distribution']
+# Model
 # Model
 #cp_model = CPModel("test", musical_corpus[0], chord_vocab)
 
@@ -75,7 +73,7 @@ if music.tonality=="major":
 else:
     chord_df = pd.read_csv("../data/chord_vocabulary_minor.csv", index_col = 0)
 chord_vocab = []
-for name, note_intervals in chord_df.itertuples():
+for _,name, note_intervals in chord_df.itertuples():
     chord_vocab.append(Chord(name, set(int(x) for x in note_intervals.split(','))))
     
 # Defining dictionary of weights for each soft constraint options:
@@ -92,7 +90,8 @@ dic_bestchord_bwd=src.music_functions.func_get_best_progression_chord(file_progr
 mp_model = MPModel("test", music,[], chord_vocab,
                     hard_constraints, 
                     soft_constraint_w_weights, 
-                    file_progression_cost=file_progression_cost)
+                    file_progression_cost=file_progression_cost
+                    ,timelimit=60)
 solution = mp_model.solve()
 
 
@@ -100,8 +99,8 @@ df_soluiton=pd.DataFrame(np.array(solution))
 df_soluiton.to_csv("ALNS_start.csv", index=False, header=False)
 
 
-cost=src.evaluate.evaluate_cost(solution[:-1],solution[-1] ,"major", mode="L")   
-#print(cost)
+cost=src.evaluate.evaluate_cost(solution[:-1],solution[-1] , tonality=music.tonality, mode="L")   
+print(cost)
 #%%
 def destroy_1(current, random_state): ## greedy worst sum-of-cost removal of 2nd, 3rd or 4th note 
 
@@ -155,7 +154,8 @@ def repair_1(destroyed, random_state):#greedy_repair, fix 2 missing chords in a 
     mp_model = MPModel("test", music, destroyed.HarmonyInput ,chord_vocab,
                         hard_constraints, 
                         soft_constraint_w_weights, 
-                        file_progression_cost=file_progression_cost)
+                        file_progression_cost=file_progression_cost,
+                        timelimit=30)
     solved= mp_model.solve()
     repaired.HarmonyInput = solved
     repaired.HarmonyOutput = solved
@@ -179,7 +179,8 @@ def repair_2(destroyed, random_state):#greedy_repair, fix 2 missing chords in a 
     mp_model = MPModel("test", music, destroyed.HarmonyInput ,chord_vocab,
                         hard_constraints, 
                         soft_constraint_w_weights, 
-                        file_progression_cost=file_progression_cost)
+                        file_progression_cost=file_progression_cost,
+                        timelimit=30)
     solved= mp_model.solve()
     repaired.HarmonyInput = solved
     repaired.HarmonyOutput = solved
@@ -219,13 +220,12 @@ if __name__ == '__main__':
     lambda_ = 0.8
 
     result = alns.iterate(harmony, omegas, lambda_, criterion,
-                          iterations=20, collect_stats=True)
+                          iterations=60, collect_stats=True)
     # result
-    ALNS_solution = result.best_state
-    
+    ALNS_solution = result.best_state   
     
     df_soluiton=pd.DataFrame(np.array(ALNS_solution.HarmonyInput))
-    df_soluiton.to_csv("ALNS_end.csv", index=False, header=False)
+    df_soluiton.to_csv("../outputs/ALNS_end.csv", index=False, header=False)
     
 #%%    
     
@@ -233,11 +233,12 @@ if __name__ == '__main__':
     print('Best heuristic objective is {}.'.format(objective))
     filepath = '../outputs'
     hard_constraint_encoding, soft_constraint_encoding = src.music_functions.encode_constraints(hard_constraints, soft_constraint_w_weights)
-    dest_file_path = '{}/alns_{}_{}_{}_{}.mid'.format(filepath, music.title, music.title, hard_constraint_encoding, soft_constraint_encoding)
+    dest_file_path = '{}/alns_{}_{}_{}_{}.mid'.format(filepath, music.title, music.tonality, hard_constraint_encoding, soft_constraint_encoding)
      
-    array_to_midi(ALNS_solution.HarmonyInput[:4], [53]*4, 500,dest_file_path )
+    array_to_midi(ALNS_solution.HarmonyInput[:4], [53]*4, 600,dest_file_path )   
     
-    
-    
+    stop = timeit.default_timer()
+
+    print('ALNS Run Time: ', stop - start)  
     
     cost=src.evaluate.evaluate_cost(ALNS_solution.HarmonyInput[:-1],ALNS_solution.HarmonyInput[-1] ,"major", mode="L")
