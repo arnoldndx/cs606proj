@@ -75,7 +75,7 @@ elif args.input_melody[-3:] == 'mid':
     meter = int(filename[-4])
     song_title = '_'.join(filename[2:-4])
     musical_corpus = []
-    musical_corpus.append(MusicalWorkInput(song_title, meter, key, tonality, first_on_beat, [-100 if note is None else note for note in melody[0]]))
+    musical_corpus.append(MusicalWorkInput(song_title, meter, key, tonality, first_on_beat, list(filter(None,melody[0]))))
 else:
     print(args.input_melody[-3])
     raise Exception('Error: Melody not loaded')
