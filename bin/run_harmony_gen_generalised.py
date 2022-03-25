@@ -74,8 +74,9 @@ parser.add_argument('--method', type = str, default = 'mp', choices=['mp', 'cp',
 parser.add_argument("--file", type = str, default = 'harmony_gen', help = "Filename prefix. "
                                                                          "You should give a meaningful name for easy tracking.")
 parser.add_argument('--weights', type = str, default = 'defined', choices=['defined', 'trained'])
-parser.add_argument('--training_data', type = str, default = 'bach', help = 'Filepath for training data. Folder containing midi files should be inside ../data/')
-parser.add_argument('--input', type = str, default = '../data/sample_input.csv', help = "Filepath for the input melody. Valid filetypes: .csv, .mid")
+parser.add_argument('--weights_data', type = str, help = 'Filepath for weights training data. Should be either a csv file for defined weights,'
+                                                        'or a folder containing midi files for trained wweights. Data should be in ../data/')
+parser.add_argument('--input_melody', type = str, default = '../data/sample_input.csv', help = "Filepath for the input melody. Valid filetypes: .csv, .mid")
 
 # Starting up
 args = parser.parse_args()
