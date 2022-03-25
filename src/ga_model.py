@@ -39,7 +39,14 @@ class Population:
     def evaluate_population(self):
         for individual in self.population:
             calculate_overall_fitness(individual)
-        
+    
+    def calculate_threshold(self):
+        score = 0
+        for individual in self.population:
+            score += individual.overall_fitness_score
+        thresold = score / self.__len__()
+    return threshold
+
 class Individual:
     
     def __init__(self, musical_input, x=None, c=None):
@@ -148,24 +155,27 @@ class ga_model:
             new_population.extend(population.population[:slicer])
             pool_size = self.population_size - slicer
             mating_pool = roulette_wheel_selection(population, pool_size)
-            for x in range(0, len(mating_pool)-1, 2):
-                parent_1, parent_2 = mating_pool[x], mating_pool[x+1]
+            threshold = population.calculate_threshold()
+            for x in range(0, len(mating_pool)):
+                parent_1 = mating_pool[x]
                 child_1 = crossover(parent_1, population)
-                child_1, child_2 = mutation(child_1), mutation(child_2)
+                child_1 = mutation(child_1, threshold)
                 new_population._apepnd(child_1)
-                new_population._append(child_2)
             #new_population.evaluate_population()
             population = copy.deepcopy(new_population)
             new_population = None
         population._sort()
         best_solution = population.population[0]
-        midi_array = [[]]
-        for _ in range(3):
-            midi_array.append([])
-        sol_dict
+        #midi_array = [[]]
+        #for _ in range(3):
+        #    midi_array.append([])
         return best_solution
     
     def generate_individual(self):
+        '''
+        generate an individual for the first iteration
+        '''
+        
         individual = Individual(self.musical_input, self.x)
         individual.c = initialize_chords(self.musical_input, self.chord_vocab, self.c)
         voice_range_limit = voice_range_bound()
@@ -174,6 +184,10 @@ class ga_model:
         return individual
             
     def initialize_population(self):
+        '''
+        initialize population for first iteration
+        '''
+        
         population = Population()
         for _ in range(self.population_size):
             individual = generate_individual()
@@ -182,6 +196,11 @@ class ga_model:
     
     @staticmethod
     def initialize_chords(musical_input, chord_vocab, c):
+        '''
+        initialize the chords for the first iteration
+        '''
+        
+        
         if musical_input.tonality == 'major':
             for chord in chord_vocab:
                 if chord.name == 'I':
@@ -209,6 +228,10 @@ class ga_model:
     
     @staticmethod
     def initialize_harmony(musical_input, chord_vocab, chord_vocab_ext, c, x, voice_range):
+        '''
+        initialize the 3 voices' notes for the first iteration
+        '''
+        
         for j in range(musical_input.melody_len):
             for i in range(1,4):
                 for chord, chord_ext in zip(chord_vocab, chord_vocab_ext):
@@ -280,6 +303,11 @@ class ga_model:
     
     def crossover(self, individual_1, mating_pool):
         # multi-point crossover
+        '''
+        multi-point crossover. in each individual, find the points whereby the pairs have the lowest fitness scores. then scan through the rest of the mating pool and find the individual with the highest scores at the corresponding indexes.
+        apply a multipoint crossover of the individual's gene with the other individual. that is the new child.
+        '''
+        
         i, j = crossover_points(individual_1)
         fitness_i, fitness_j = individual_1.gene_fitness_score[i], individual_1.gene_fitness_score[j]
         average_fitness = (fitness_i + fitness_j) / 2
@@ -296,6 +324,12 @@ class ga_model:
         return child
     
     def mutation(self, individual, threshold):
+        '''
+        adaptive mutation. take the fitness score of each gene and check if they are above or below the threshold, and set the mutation rate accordingly.
+        based on the mutation rate, check if the gene has to be mutated.
+        either go through the entire indiviudal or hit the max number of mutations made, whichever hits earlier.
+        '''
+        
         length = individual.individual_len
         no_of_mutations = self.no_of_mutations
         low_mutation_rate, high_mutation_rate = self.mutation_probability[0], self.mutation_probability[1]
