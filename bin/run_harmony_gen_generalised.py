@@ -12,12 +12,13 @@ import timeit
 import argparse
 import logging
 import copy
+import numpy.random as rnd
 
 sys.path.append('../')
 
 # Custom Imports
 from src.chord import Chord
-from src.musical_work_input import MusicalWorkInput
+from src.musical_work_input import MusicalWorkInput, Harmony
 from src.midi_processing import *
 # from src.learning_weights import *
 
@@ -218,7 +219,7 @@ elif args.method == 'alns':
         for j in range(0, current.N-1, 4):
             segment=  [current.HarmonyInput[k][j:j+5] for k in range(5)] #including 1st note of next bar for evaluation
           
-            cost=src.evaluate.evaluate_cost(segment[:-1],segment[-1] ,
+            cost=src.evaluate_v0.evaluate_costALNS(segment[:-1],segment[-1] ,
                                             current.MusicInput.tonality, 
                                             mode="sum", 
                                             first_on_beat=1)
@@ -256,7 +257,7 @@ elif args.method == 'alns':
             elif repaired.HarmonyInput[-1][j]!=-100:
                 counter=0
         
-        mp_model = MPModel("test", music, destroyed.HarmonyInput ,chord_vocab,
+        mp_model = MPModelALNS("test", music, destroyed.HarmonyInput ,chord_vocab,
                             hard_constraints, 
                             soft_constraint_w_weights, 
                             file_progression_cost=file_progression_cost,
@@ -281,7 +282,7 @@ elif args.method == 'alns':
             elif repaired.HarmonyInput[-1][j]!=-100:
                 counter=0
         
-        mp_model = MPModel("test", music, destroyed.HarmonyInput ,chord_vocab,
+        mp_model = MPModelALNS("test", music, destroyed.HarmonyInput ,chord_vocab,
                             hard_constraints, 
                             soft_constraint_w_weights, 
                             file_progression_cost=file_progression_cost,
@@ -293,10 +294,7 @@ elif args.method == 'alns':
         repaired.chords = solved[-1]
         
         return repaired
-    def alns_export_midi(notes, instruments = [20]*4, beat = 500, filepath = '../outputs'):
-        array_to_midi(notes, instruments, beat,
-                      dest_file_path = '{}/cp_{}_{}_{}_{}.mid'.format(
-                          filepath, self.name, self.musical_input.title, self.hard_constraint_encoding, self.soft_constraint_encoding))
+   
     #%%  
     # Importing Chord Vocabulary
     if music.tonality=="major":
@@ -312,10 +310,9 @@ elif args.method == 'alns':
     file_progression_cost = "chord_progression_major_v1.csv" if music.tonality == "major" else "chord_progression_minor_v1.csv"
     dic_bestchord_fwd=src.music_functions.func_get_best_progression_chord(file_progression_cost, "fwd")
     dic_bestchord_bwd=src.music_functions.func_get_best_progression_chord(file_progression_cost, "bwd")
-
-
+    
     # Construction heuristic (MP model)
-    mp_model = MPModel("test", music, [], chord_vocab,
+    mp_model = MPModelALNS("test", music, [], chord_vocab,
                         hard_constraints, 
                         soft_constraint_w_weights, 
                         file_progression_cost = file_progression_cost,
