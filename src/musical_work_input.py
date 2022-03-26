@@ -1,4 +1,5 @@
 import src.music_functions
+import src.evaluate_v0
 import src.evaluate
 import sys
 
@@ -48,7 +49,7 @@ class Harmony(State):
                                        self.MusicInput.meter, self.MusicInput.first_on_beat,
                                        mode="L")
     def objective(self): #get_cost_sum()
-        return src.evaluate_v0.evaluate_cost(self.notes, self.chords, self.MusicInput.tonality, 
+        return src.evaluate_v0.evaluate_costALNS(self.notes, self.chords, self.MusicInput.tonality, 
                                        self.MusicInput.meter, self.MusicInput.first_on_beat,
                                        mode="S")
 
