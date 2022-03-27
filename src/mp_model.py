@@ -1,7 +1,9 @@
 from docplex.mp.model import Model
 from docplex.mp.progress import ProgressDataRecorder
+from docplex.mp.progress import ProgressListener
 import src.music_functions 
 import matplotlib.pyplot as plt
+
 
 class MPModel:
     def __init__(self, model_name, musical_input, chord_vocab
@@ -63,7 +65,7 @@ class MPModel:
                             }
        # print(hard_constraints)
         for k in hard_constraints:
-            print(k)
+            #print(k)
             hard_constraints[k]()
         counter=0
         self.costs=[]
@@ -267,12 +269,18 @@ class MPModel:
         return  cost8                        
     def solve(self, log = True):
          
+        #recorder = ProgressDataRecorder()
+        #self.m.add_progress_listener(recorder)
         recorder = ProgressDataRecorder()
         self.m.add_progress_listener(recorder)
         sol = self.m.solve(log_output = False)
-        #print(sol.get_objective_values())  
         
-
+        
+        
+        progess_data=[]
+        for data in recorder.recorded:
+            progess_data.append((data.time,data.current_objective))
+            
         midi_array = [[]]
         for _ in range(4):
             midi_array.append([])
@@ -285,6 +293,6 @@ class MPModel:
         for j in self.c.keys(): 
             midi_array[4].append(round(sol_2[j]))
         
-        return midi_array
+        return midi_array, progess_data
         
     #
