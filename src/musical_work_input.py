@@ -44,12 +44,15 @@ class Harmony(State):
     def iscomplete(self):
         return sum (self.HarmonyInput[i][j]<=-99 for i in range (5) for j in range(self.N)) < 0.01
     def get_cost_list(self):
-        return src.evaluate.evaluate_cost(self.notes, self.chords, self.MusicInput.tonality, 
-                                       self.MusicInput.meter, self.MusicInput.first_on_beat,
-                                       mode="L")
+        return src.evaluate.evaluate_cost(self.notes, self.chords, self.MusicInput.key, self.MusicInput.tonality, 
+                                          self.MusicInput.meter, self.MusicInput.first_on_beat,
+                                          mode="L")
     def objective(self): #get_cost_sum()
-        return src.evaluate_v0.evaluate_cost(self.notes, self.chords, self.MusicInput.tonality, 
-                                       self.MusicInput.meter, self.MusicInput.first_on_beat,
-                                       mode="S")
+    
+        cost_list= src.evaluate.evaluate_cost(self.notes, self.chords, self.MusicInput.key, self.MusicInput.tonality, 
+                                              self.MusicInput.meter, self.MusicInput.first_on_beat,
+                                              mode="D")
+        return sum( v for k,v in cost_list.items() if k[:4]=="soft")
+                  
 
 #def evaluate_cost(list_x, list_c , tonality, meter=4, first_on_beat=0, mode="L") 

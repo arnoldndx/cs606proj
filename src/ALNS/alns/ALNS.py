@@ -206,7 +206,9 @@ class ALNS:
                 statistics.collect_objective(current.objective())
                 statistics.collect_destroy_operator(d_name, weight_idx)
                 statistics.collect_repair_operator(r_name, weight_idx)
-
+                #Added by hestella:
+                statistics.collect_objective_time(current.objective())
+                #
         return Result(best, statistics if collect_stats else None)
 
     def on_best(self, func):
