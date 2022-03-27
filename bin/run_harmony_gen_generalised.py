@@ -245,6 +245,7 @@ elif args.method == 'alns':
         for j in range(0, current.N-1, 4):
             segment=  [current.HarmonyInput[k][j:j+5] for k in range(5)] #including 1st note of next bar for evaluation
           
+
             cost=src.evaluate.evaluate_cost(segment[:-1],segment[-1] ,current.MusicInput.key,
                                             current.MusicInput.tonality, 
                                             mode="sum", 
@@ -322,6 +323,7 @@ elif args.method == 'alns':
         repaired.chords = solved[-1]
         
         return repaired
+      
     def repair_3(destroyed, random_state):#greedy_repair, fix 2 missing chords in a row
         repaired=destroyed.copy()
         length=len(repaired.HarmonyInput[-1])
@@ -363,8 +365,7 @@ elif args.method == 'alns':
     file_progression_cost = "chord_progression_major_v1.csv" if music.tonality == "major" else "chord_progression_minor_v1.csv"
     dic_bestchord_fwd=src.music_functions.func_get_best_progression_chord(file_progression_cost, "fwd")
     dic_bestchord_bwd=src.music_functions.func_get_best_progression_chord(file_progression_cost, "bwd")
-
-
+    
     # Construction heuristic (MP model)
     mp_model = MPModelALNS("test", music,[], chord_vocab,
                         hard_constraints, 
