@@ -31,5 +31,5 @@ Optional arguments (all have defaults):
 Examples of run scripts in anaconda prompt
 
 ```
-python run_harmony_gen_generalised.py --file 'test' --input_melody ../data/test_melody_hatikvah(israel)_4_1_minor_1.mid --method alns --time_limit 10
+python run_harmony_gen_generalised.py --file 'test' --input_melody ../data/test_melody_hatikvah(israel)_4_1_minor_1.mid --method alns --time_limit 100
 ```
