@@ -1,7 +1,9 @@
 from docplex.mp.model import Model
 from docplex.mp.progress import ProgressDataRecorder
+from docplex.mp.progress import ProgressListener
 import src.music_functions 
 import matplotlib.pyplot as plt
+
 
 class MPModel:
     def __init__(self, model_name, musical_input, chord_vocab
@@ -29,13 +31,14 @@ class MPModel:
         self.define_decision_variables()
         
         #Adding Constraints
+        
         hard_constraints = {'musical input': self.hard_constraint_musical_input,
                             'voice range': self.hard_constraint_voice_range,
-                            'chord repetition': self.hard_constraint_chord_repetition,
+                            #'chord repetition': self.hard_constraint_chord_repetition,
                             'chord membership': self.hard_constraint_chord_membership,
                              'first last chords': self.hard_constraint_first_last_chords,
-                             'chord bass repetition': self.hard_constraint_chord_bass_repetition,
-                             'adjacent bar chords': self.hard_constraint_adjacent_bar_chords,
+                             #'chord bass repetition': self.hard_constraint_chord_bass_repetition,
+                             #'adjacent bar chords': self.hard_constraint_adjacent_bar_chords,
                              'voice crossing': self.hard_constraint_voice_crossing,
                              'parallel movement': self.hard_constraint_parallel_movement,
                              'chord spacing': self.hard_constraint_chord_spacing,
@@ -60,21 +63,22 @@ class MPModel:
                             'first inversion': self.soft_constraint_first_inversion#new
                             #'chord distribution': self.soft_constraint_chord_distribution}#new
                             }
-
+       # print(hard_constraints)
         for k in hard_constraints:
-            
+            #print(k)
             hard_constraints[k]()
         counter=0
         self.costs=[]
         for k,v in self.soft_constraints_w_weights.items():
             if v>0 and k in soft_constraints:
+               # print(k)
             # if weight input >0 the constraint is turned on  
                 self.costs.append(soft_constraints[k](weight=v))
                 counter+=1
 
         #Objective Function
         self.m.minimize(self.m.sum(self.costs[p][j] for p in range(counter) for j in range(self.N))  )
-
+        
     def define_decision_variables(self):
         arr = [(i,j) for i in range(4) for j in range(self.N)]
         arrc=[j for j in range(self.N)]
@@ -92,8 +96,7 @@ class MPModel:
             for j in range(self.N):
                 self.m.add_constraint(self.x[i,j] >= lb[i-1])
                 self.m.add_constraint(self.x[i,j] <= ub[i-1])
-    def hard_constraint_chord_repitition(self):
-        pass
+
     def hard_constraint_chord_membership(self): #All notes must belong to the same chord
         offset=self.musical_input.reference_note
         chord_vocab_ext = []
@@ -162,8 +165,8 @@ class MPModel:
     def hard_constraint_incomplete_chord(self): #The 4 voices must fully cover the 3 notes in a chord
         
         for j in range(self.N):
-            self.m.add_constraint(1==
-                                  self.m.sum( self.m.sum( (self.x[i,j]- self.x[k,j]==12) + (self.x[i,j]- self.x[k,j]==24) + (self.x[i,j]- self.x[k,j]==36) for i in range(3) ) for k in range(4) )
+            self.m.add_constraint(4==
+                                  self.m.sum( self.m.sum( (self.x[i,j]- self.x[k,j]==0)+(self.x[i,j]- self.x[k,j]==12) + (self.x[i,j]- self.x[k,j]==24) + (self.x[i,j]- self.x[k,j]==36) for i in range(3) ) for k in range(4) )
                                   ) 
 
 
@@ -171,7 +174,8 @@ class MPModel:
         #Distance between adjacent lower voices must not be less than distance between adjacent higher voices.
         for j in range(self.N):
             for i in range(2):
-                self.m.add(self.x[i,j] - self.x[i+1,j] <= self.x[i+1,j] - self.x[i+2,j])                
+                self.m.add_constraint(self.x[i,j] - self.x[i+1,j] <= self.x[i+1,j] - self.x[i+2,j])                
+                
                 
 #***************************************************************************************************************    
     def soft_constraint_chord_progression(self, weight=1):
@@ -265,27 +269,18 @@ class MPModel:
         return  cost8                        
     def solve(self, log = True):
          
+        #recorder = ProgressDataRecorder()
+        #self.m.add_progress_listener(recorder)
         recorder = ProgressDataRecorder()
         self.m.add_progress_listener(recorder)
         sol = self.m.solve(log_output = False)
-        #print(sol.get_objective_values())  
         
-        # best_bound = []
-        # det_time = []
-        # current_objective = []
-        # for data in recorder.recorded:
-        #     best_bound.append(data.best_bound)
-        #     det_time.append(data.det_time/100)
-           
-           
-        # current_objective.append(data.current_objective)
-           
-        # plt.plot(det_time, current_objective, label = "best integer", marker='s', linestyle = '--')
-        # plt.plot(det_time, best_bound, label = "best node")
-        # plt.legend()
-        # plt.show()   
         
-        # return the midi array for conversion
+        
+        progess_data=[]
+        for data in recorder.recorded:
+            progess_data.append((data.time,data.current_objective))
+            
         midi_array = [[]]
         for _ in range(4):
             midi_array.append([])
@@ -298,6 +293,6 @@ class MPModel:
         for j in self.c.keys(): 
             midi_array[4].append(round(sol_2[j]))
         
-        return midi_array
+        return midi_array, progess_data
         
     #

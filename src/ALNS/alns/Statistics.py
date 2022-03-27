@@ -1,7 +1,8 @@
 from collections import defaultdict
 
 import numpy as np
-
+import timeit
+#start = timeit.default_timer()
 
 class Statistics:
 
@@ -11,7 +12,7 @@ class Statistics:
         optionally populated by the ALNS algorithm.
         """
         self._objectives = []
-
+        self._objectives_w_time = []
         self._destroy_operator_counts = defaultdict(lambda: [0, 0, 0, 0])
         self._repair_operator_counts = defaultdict(lambda: [0, 0, 0, 0])
 
@@ -62,7 +63,12 @@ class Statistics:
             The objective value to be collected.
         """
         self._objectives.append(objective)
-
+    #added by hestella    
+    def collect_objective_time(self, objective):
+        timenow=timeit.default_timer()
+        self._objectives_w_time.append((timenow,objective))
+        
+        
     def collect_destroy_operator(self, operator_name, weight_idx):
         """
         Collects a weight (index) for a used destroy operator. This maintains

@@ -34,11 +34,11 @@ class MPModelALNS:
         hard_constraints = {'musical input': self.hard_constraint_musical_input,
                             'all input': self.hard_constraint_all_input,
                             'voice range': self.hard_constraint_voice_range,
-                            'chord repetition': self.hard_constraint_chord_repetition,
+                            #'chord repetition': self.hard_constraint_chord_repetition,
                             'chord membership': self.hard_constraint_chord_membership,
                              'first last chords': self.hard_constraint_first_last_chords,
-                             'chord bass repetition': self.hard_constraint_chord_bass_repetition,
-                             'adjacent bar chords': self.hard_constraint_adjacent_bar_chords,
+                            # 'chord bass repetition': self.hard_constraint_chord_bass_repetition,
+                             #'adjacent bar chords': self.hard_constraint_adjacent_bar_chords,
                              'voice crossing': self.hard_constraint_voice_crossing,
                              'parallel movement': self.hard_constraint_parallel_movement,
                              'chord spacing': self.hard_constraint_chord_spacing,
@@ -48,7 +48,7 @@ class MPModelALNS:
 
         soft_constraints = {'chord progression': self.soft_constraint_chord_progression,
                             'chord repetition': self.soft_constraint_chord_repetition, 
-                            #'chord bass repetition': self.soft_constraint_chord_bass_repetition,
+                            'chord bass repetition': self.soft_constraint_chord_bass_repetition,
                             'leap resolution': self.soft_constraint_leap_resolution,
                             #'melodic movement': self.soft_constraint_melodic_movement,
                             'note repetition': self.soft_constraint_note_repetition,
@@ -177,8 +177,8 @@ class MPModelALNS:
     def hard_constraint_incomplete_chord(self): #The 4 voices must fully cover the 3 notes in a chord
         
         for j in range(self.N):
-            self.m.add_constraint(1==
-                                  self.m.sum( self.m.sum( (self.x[i,j]- self.x[k,j]==12) + (self.x[i,j]- self.x[k,j]==24) + (self.x[i,j]- self.x[k,j]==36) for i in range(3) ) for k in range(4) )
+            self.m.add_constraint(4==
+                                  self.m.sum( self.m.sum( (self.x[i,j]- self.x[k,j]==0)+(self.x[i,j]- self.x[k,j]==12) + (self.x[i,j]- self.x[k,j]==24) + (self.x[i,j]- self.x[k,j]==36) for i in range(3) ) for k in range(4) )
                                   ) 
 
 
@@ -186,7 +186,7 @@ class MPModelALNS:
         #Distance between adjacent lower voices must not be less than distance between adjacent higher voices.
         for j in range(self.N):
             for i in range(2):
-                self.m.add(self.x[i,j] - self.x[i+1,j] <= self.x[i+1,j] - self.x[i+2,j])                
+                self.m.add_constraint(self.x[i,j] - self.x[i+1,j] <= self.x[i+1,j] - self.x[i+2,j])                
                 
 #***************************************************************************************************************    
     def soft_constraint_chord_progression(self, weight=1):
@@ -211,8 +211,11 @@ class MPModelALNS:
         for j in range(self.N-1):
             self.m.add_constraint(cost2[j]>=weight* (self.c[j]==self.c[j+1]))
         return cost2
-    def soft_constraint_chord_bass_repetition(weight=1): 
-        pass
+    def soft_constraint_chord_bass_repetition(self,weight=1):
+        cost_2= self.m.continuous_var_list(self.N, 0,100, "Chord base repetition cost")
+        for j in range(self.N-1):
+            self.m.add_constraint( cost_2[j]>=weight*((self.c[j] == self.c[j+1])>=1+ (self.x[3,j]!= self.x[3,j+1])))
+        return cost_2
     def soft_constraint_adjacent_bar_chords(weight=1):
         pass
     

@@ -7,6 +7,7 @@ Edited by Gab on Thu Mar 3 19:26:00 2022
 import os
 import sys
 import pandas as pd
+import numpy as np
 # from collections import defaultdict
 import timeit
 import argparse
@@ -30,9 +31,11 @@ from src.cp_model import CPModel
 # for ALNS
 from src.ALNS.alns import ALNS
 from src.ALNS.alns.criteria import HillClimbing, SimulatedAnnealing, RecordToRecordTravel
-import src.evaluate_v0
+#import src.evaluate_v0
+import src.evaluate
+import src.music_functions
 from src.mp_model_for_ALNS_construction import MPModelALNS
-import src.evaluate_v0
+
 
 
 logger = logging.getLogger(__file__)
@@ -99,6 +102,8 @@ hard_constraint_choices = list(pd.read_csv(args.hard_constraints_choice).columns
 hard_constraints = {x: True if x in hard_constraint_choices
                     else False for x in hard_constraint_options}
 
+
+
 #%%
 logger.info(f'==============================================')
 logger.info(f'Preparing weights for soft constraints')
@@ -115,7 +120,11 @@ for _, name, w in weight_df.itertuples(): #name population is same as soft_const
     soft_constraint_w_weights[name] = float(w)
     
 assert sum(v for v in soft_constraint_w_weights.values() if v > 0) == 100
-
+# Defining dictionary of weights for ALNS
+weight_df = pd.read_csv("../data/soft_constraint_weights.csv")
+soft_constraint_w_weights_ALNS={}
+for _,name, w in weight_df.itertuples(): #name population is same as soft_constraint_options
+    soft_constraint_w_weights_ALNS[name]=float(w)
 #%%
 logger.info(f'==============================================')
 logger.info(f'Generating Harmony with {args.method} model')
@@ -125,12 +134,10 @@ start = timeit.default_timer()
 
 music = musical_corpus[-1]
 logger.info(f'Title: {music.title}, Key: {music.key}, Tonality: {music.tonality}, Onset: {music.first_on_beat}, Melody: {music.melody}, Ref #C: {music.reference_note}')
-
+#%%#############################################################################################################
 if args.method == 'mp':
     #%%
-    # Model
-    #cp_model = CPModel("test", musical_corpus[0], chord_vocab)
-    
+
     # Importing Chord Vocabulary
     if music.tonality=="major":
         chord_df = pd.read_csv("../data/chord_vocabulary_major.csv", index_col = 0)
@@ -138,7 +145,7 @@ if args.method == 'mp':
         chord_df = pd.read_csv("../data/chord_vocabulary_minor.csv", index_col = 0)
     chord_vocab = []
     for index, name, note_intervals in chord_df.itertuples():
-        chord_vocab.append(Chord(index, name, set(int(x) for x in note_intervals.split(','))))
+        chord_vocab.append(Chord(index, name, [int(x) for x in note_intervals.split(',')]))
         
         
     file_progression_cost="../data/chord_progression_major_v1.csv" if music.tonality=="major" else "../data/chord_progression_minor_v1.csv"
@@ -147,18 +154,32 @@ if args.method == 'mp':
                         #hard_constraints, 
                         soft_constraint_w_weights, 
                         file_progression_cost=file_progression_cost,
+                        #timelimit=600)
                         timelimit=args.time_limit)
-        
-    midi_array_with_chords = mp_model.solve()
+     
+    #midi_array_with_chords = mp_model.solve()
+    midi_array_with_chords, progress_data = mp_model.solve()
     
-    # generate df_solution for csv solution gen
-    df_solution = pd.DataFrame(np.array(midi_array_with_chords))
     
-    # generate midi_array for midi gen
-    midi_array = midi_array_with_chords[:4]
-        
+    final_cost_list= src.evaluate.evaluate_cost(midi_array_with_chords[:4], midi_array_with_chords[4], music.key, 
+                                                music.tonality, music.meter, music.first_on_beat,mode="D")
+
+    finalcost =sum( v for k,v in final_cost_list.items() if k[:4]=="soft")    
+    addon= finalcost-  progress_data[-1][1]
+    #print(finalcost, addon)
     
-#%%
+    # csv output  
+    df_solution = pd.DataFrame(np.array(midi_array_with_chords))    
+    # midi output  
+    midi_array = midi_array_with_chords[:4]        
+    # objective progress output 
+    progress_array= [(x[0], x[1]+addon)  for x in progress_data]
+    #print(progress_array)
+
+
+
+
+#%%#############################################################################################################
 elif args.method == 'cp':
     # Importing Chord Vocabulary
     chord_df_major = pd.read_csv("../data/chord_vocabulary_major.csv", index_col = 0)
@@ -199,27 +220,33 @@ elif args.method == 'cp':
     solution = cp_model.solve(log_output = True, TimeLimit = args.time_limit, LogVerbosity = 'Verbose')
     result = cp_model.get_solution()
           
-    # generate df_solution for csv solution gen
+   
     solved_harmony = copy.deepcopy(result['Notes'])
     solved_harmony.append(result['Chords'])
-                                            
+    
+    # csv output                                        
     df_solution = pd.DataFrame(np.array(solved_harmony))
     
-    # generate midi_array for midi gen
+    # midi output
     midi_array = result['Notes']
-#%%    
+    
+    # objective progress output 
+    #???
+#%%  
+#%%#############################################################################################################  
 elif args.method == 'alns':
     #%%    
     def destroy_1(current, random_state): ## greedy worst sum-of-cost removal of 2nd, 3rd or 4th note 
 
-        #class Harmony(State)
-        
+    #class Harmony(State)
+    
         destroyed = current.copy()   
         maxcost, destroy_idx=0,0
         for j in range(0, current.N-1, 4):
             segment=  [current.HarmonyInput[k][j:j+5] for k in range(5)] #including 1st note of next bar for evaluation
           
-            cost=src.evaluate_v0.evaluate_costALNS(segment[:-1],segment[-1] ,
+
+            cost=src.evaluate.evaluate_cost(segment[:-1],segment[-1] ,current.MusicInput.key,
                                             current.MusicInput.tonality, 
                                             mode="sum", 
                                             first_on_beat=1)
@@ -228,9 +255,9 @@ elif args.method == 'alns':
         for i in range(1,5):
             for j in range(destroy_idx+1, destroy_idx+4 ):
                 destroyed.HarmonyInput[i][j] =-100     
-        
+    
         return destroyed   
-        
+    
     def destroy_2(current, random_state): ## random removal of whole bar
         destroyed = current.copy()   
         destroy_idx=4* rnd.randint(0,current.N //4)
@@ -243,6 +270,8 @@ elif args.method == 'alns':
         return destroyed   
             
     ### Repair operators ###
+
+
 
     def repair_1(destroyed, random_state):#greedy_repair, fix 2 missing chords in a row
         repaired=destroyed.copy()
@@ -259,7 +288,7 @@ elif args.method == 'alns':
         
         mp_model = MPModelALNS("test", music, destroyed.HarmonyInput ,chord_vocab,
                             hard_constraints, 
-                            soft_constraint_w_weights, 
+                            soft_constraint_w_weights_ALNS, 
                             file_progression_cost=file_progression_cost,
                             timelimit=30)
         solved= mp_model.solve()
@@ -278,6 +307,32 @@ elif args.method == 'alns':
         for j in range(length-2,0,-1):
             if  repaired.HarmonyInput[-1][j]==-100 and counter<=1:
                 repaired.HarmonyInput[-1][j]=dic_bestchord_bwd.get(repaired.HarmonyInput[-1][j+1],0)
+                counter+=1
+            elif repaired.HarmonyInput[-1][j]!=-100:
+                counter=0
+        
+        mp_model = MPModelALNS("test", music, destroyed.HarmonyInput ,chord_vocab,
+                            hard_constraints, 
+                            soft_constraint_w_weights_ALNS, 
+                            file_progression_cost=file_progression_cost,
+                            timelimit=30)
+        solved= mp_model.solve()
+        repaired.HarmonyInput = solved
+        repaired.HarmonyOutput = solved
+        repaired.notes = solved[:-1]
+        repaired.chords = solved[-1]
+        
+        return repaired
+      
+    def repair_3(destroyed, random_state):#greedy_repair, fix 2 missing chords in a row
+        repaired=destroyed.copy()
+        length=len(repaired.HarmonyInput[-1])
+        
+        #repaired.HarmonyInput[-1]==-100
+        counter=0
+        for j in range(1,length):
+            if  repaired.HarmonyInput[-1][j]==-100 and counter==0:
+                repaired.HarmonyInput[-1][j]=dic_bestchord_fwd.get(repaired.HarmonyInput[-1][j-1],0)
                 counter+=1
             elif repaired.HarmonyInput[-1][j]!=-100:
                 counter=0
@@ -304,7 +359,7 @@ elif args.method == 'alns':
     chord_vocab = []
     for index, name, note_intervals in chord_df.itertuples():
     #for name, note_intervals in chord_df.itertuples():
-        chord_vocab.append(Chord(index, name, set(int(x) for x in note_intervals.split(','))))
+        chord_vocab.append(Chord(index, name, [int(x) for x in note_intervals.split(',')]))
         
  
     file_progression_cost = "chord_progression_major_v1.csv" if music.tonality == "major" else "chord_progression_minor_v1.csv"
@@ -312,15 +367,17 @@ elif args.method == 'alns':
     dic_bestchord_bwd=src.music_functions.func_get_best_progression_chord(file_progression_cost, "bwd")
     
     # Construction heuristic (MP model)
-    mp_model = MPModelALNS("test", music, [], chord_vocab,
+    mp_model = MPModelALNS("test", music,[], chord_vocab,
                         hard_constraints, 
-                        soft_constraint_w_weights, 
-                        file_progression_cost = file_progression_cost,
-                        timelimit=60)
-    
-    
+                        soft_constraint_w_weights_ALNS, 
+                        file_progression_cost=file_progression_cost
+                        ,timelimit=120)
     solution = mp_model.solve()
 
+
+    # cost=src.evaluate.evaluate_cost(solution[:-1],solution[-1] ,key=music.key,
+    #                                 tonality=music.tonality, mode="L",chord_vocab=chord_vocab)   
+    # print(cost)
     
     ini = solution.copy()
     # construct random initialized solution
@@ -338,6 +395,7 @@ elif args.method == 'alns':
     # add repair
     alns.add_repair_operator(repair_1)
     alns.add_repair_operator(repair_2)
+    alns.add_repair_operator(repair_3)
     # run ALNS
     # select cirterion
     criterion = HillClimbing()
@@ -347,15 +405,23 @@ elif args.method == 'alns':
 
     result = alns.iterate(harmony, omegas, lambda_, criterion,
                           iterations=args.time_limit, collect_stats=True)
-    # result
-    ALNS_solution = result.best_state   
     
-    df_solution = pd.DataFrame(np.array(ALNS_solution.HarmonyInput))
+    
+    # result
+    ALNS_solution = result.best_state  
+    # csv output
+    df_solution = pd.DataFrame(np.array(ALNS_solution.HarmonyInput))   
     
     logger.info(f'Best heuristic objective is {ALNS_solution.objective()}')
     
-    # extract solution
+    # midi output
     midi_array = ALNS_solution.HarmonyInput[:4]
+    
+    # objective progress output 
+    progress_array= [(x[0]-start, x[1])  for x in  result.statistics._objectives_w_time]
+    #print(progress_array)
+
+#%%#############################################################################################################  
     
 # Get the stop time
 stop = timeit.default_timer()
