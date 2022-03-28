@@ -217,7 +217,7 @@ elif args.method == 'cp':
                        soft_constraint_w_weights)
     
     #Solving Model
-    solution = cp_model.solve(log_output = True, TimeLimit = args.time_limit, LogVerbosity = 'Verbose')
+    solution, progress_array = cp_model.solve(log_output = True, TimeLimit = args.time_limit, LogVerbosity = 'Verbose')
     result = cp_model.get_solution()
           
    
@@ -230,8 +230,6 @@ elif args.method == 'cp':
     # midi output
     midi_array = result['Notes']
     
-    # objective progress output 
-    #???
 #%%  
 #%%#############################################################################################################  
 elif args.method == 'alns':
