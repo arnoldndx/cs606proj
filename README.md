@@ -1,5 +1,18 @@
-# CS606: AI Planning & Decision Making Project (Group 3)
-Generating Four-Part Harmony (Using Constraint Programming and Evolutionary Techniques)
+**CS606: AI Planning & Decision Making Project (Group 3)**
+# Auto-generation of four-part harmonies
+
+This repository contains code to generating a four-part harmony in accordance with composition rules of Western music which was created for our group project for CS606 under SMU's MITB programme.
+
+## Brief Introduction and Methods
+The harmony generator applies four different optimisation techniques to generate potential solutions to four-part harmony given a fixed melody.
+
+The techniques attempted are:
+- Mixed-integer Programming
+- Constraint Programming
+- Adaptive Large Neighbourhood Search
+- Genetic Algorithm
+
+Please refer to the rest of the readme for information on how to operate this harmony generator. We have included sample inputs under the data folder, although you are free to use your own inputs as well, provided they follow the correct format.
 
 ## Getting Started
 
