@@ -447,7 +447,7 @@ logger.info(f'==============================================')
 logger.info(f'Writing outputs...')
 
 # generate the solution as a midi file
-array_to_midi(midi_array, [53]*4, 600, dest_file_path=dest_file_path)
+array_to_midi(midi_array, [19]*4, 600, dest_file_path=dest_file_path)
 
 # generate solution as a csv
 df_solution.to_csv('{}/{}_{}_{}_{}_{}_{}.csv'.format(filepath,
