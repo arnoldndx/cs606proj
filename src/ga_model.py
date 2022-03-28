@@ -1,3 +1,4 @@
+import timeit
 import copy
 import random
 import numpy as np
@@ -30,7 +31,7 @@ class Population:
         x = 0
         for individual in self.population:
             dct[x] = individual.overall_fitness_score
-        dct_sorted = dict(sorted(dct.items(), key=lambda item: item[1], reverse=True))
+        dct_sorted = dict(sorted(dct.items(), key=lambda item: item[1]))
         population_sorted = [] * len(self.population)
         for k, v in dct_sorted:
             population_sorted.append(self.population[k])
@@ -59,14 +60,16 @@ class Individual:
         self.c = c # decision variable for chords
     
     def calculate_overall_fitness(self):
-        self.overall_fitness_score = src.evaluate.evaluate_cost(self.x, self.c, self.musical_input.tonality, mode='')
+        for i in range(0, self.individual_len-1):
+            self.gene_fitness_score[i] = calculate_gene_fitness(i,2)
+            self.overall_fitness_score += self.gene_fitness_score[i]
+        self.gene_fitness_score[self.individual_len-2] = calculate_gene_fitness(self.individual_len-2, 1)
+        self.overall_fitness_score += self.gene_fitness_score[self.individual_len-2]
+        self.gene_fitness_score[self.individual_len-1] = calculate_gene_fitness(self.individual_len-1, 0)
+        self.overall_fitness_score += self.gene_fitness_score[self.individual_len-1]
     
-    #def evaluate_gene_fitness(self):
-        
-    def update_gene_fitness(self, idx, score):
-        self.gene_fitness_score[idx] += score
-        #self.calculate_overall_fitness()
-        self.overall_fitness_score += score
+    def calculate_gene_fitness(self, idx, window):
+        self.gene_fitness_score[idx] = src.evaluate.evaluate_cost(self.x[idx:idx+window+1], self.c[idx:idx+window+1], self.musical_input.key, self.musical_input.tonality, self.musical_input.meter, self.musical_input.first_on_beat, mode='')
     
     def crossover_points(self):
         i, j = 0, 0
@@ -82,11 +85,6 @@ class Individual:
                 score_list = []
                 break
         return i, j
-            
-
-    '''
-    to do: calculate fitness score of adjacent genes. window size=3?
-    '''
 
 class ga_model:
     
@@ -101,27 +99,22 @@ class ga_model:
         self.max_generation = max_generation
         self.population_size = population_size
         self.hard_constraints = hard_constraints
-        self.soft_constraints_weights = soft_constraints_weights
-        #self.constraint_encoding = encode_constraints(hard_constraints, soft_constraints_weights)
+        self.soft_constraints_w_weights = soft_constraints_w_weights
         self.no_of_mutations = no_of_mutations
         self.mutation_probability = mutation_probability
-        self.voice_range_list = voice_range_bound()
         
-    def voice_range_bound(self, lb = [19, 12, 5], ub = [38, 28, 26]):
-        #voice_ranges = {1: (19, 38), 2: (12, 28), 3: (5, 26)}
-        voice_range_list = np.zeros((3, self.N), dtype=int)
-        for i in range(1,4):
-            for j in range(self.N):
-                voice_range_list[i,j] = (lb[i-1], ub[i-1])
-        return voice_range_list
-        
-        hard_constraints = {'chord membership': self.hard_constraint_chord_membership, # also in initialize_harmony()
+        hard_constraints = {'musical input': self.hard_constraint_musical_input,
+                            'voice range': self.hard_constraint_voice_range,
+                            'chord membership': self.hard_constraint_chord_membership,
                             'first last chords': self.hard_constraint_first_last_chords,
+                            'chord repetition': self.hard_constraint_chord_repetition,
                             'chord bass repetition': self.hard_constraint_chord_bass_repetition,
                             'adjacent bar chords': self.hard_constraint_adjacent_bar_chords,
                             'voice crossing': self.hard_constraint_voice_crossing,
                             'parallel movement': self.hard_constraint_parallel_movement,
-                            'chord spacing': self.hard_constraint_chord_spacing}
+                            'chord spacing': self.hard_constraint_chord_spacing,
+                            'incomplete chord': self.hard_constraint_incomplete_chord,
+                            'chord distribution': self.hard_constraint_chord_distribution}
 
         soft_constraints = {'chord progression': self.soft_constraint_chord_progression,
                             'chord repetition': self.soft_constraint_chord_repetition,
@@ -134,8 +127,12 @@ class ga_model:
                             'adjacent bar chords': self.soft_constraint_adjacent_bar_chords,
                             'chord spacing': self.soft_constraint_chord_spacing,
                             'distinct notes': self.soft_constraint_distinct_notes,
+                            'incomplete chord': self.soft_constraint_incomplete_chord,
                             'voice crossing': self.soft_constraint_voice_crossing,
-                            'voice range': self.soft_constraint_voice_range}
+                            'voice range': self.soft_constraint_voice_range,
+                            'second inversion': self.soft_constraint_second_inversion,
+                            'first inversion': self.soft_constraint_first_inversion,
+                            'chord distribution': self.soft_constraint_chord_distribution}
         
         for chord in self.chord_vocab:
             chord_vocab_ext.append(src.music_functions.extend_range(src.music_functions.transpose(chord.note_intervals, self.K)))
@@ -143,11 +140,25 @@ class ga_model:
         for j in range(self.N):
             self.x[0,j] = self.musical_input.melody[j]
     
+    def voice_range_bound(self, lb = [19, 12, 5], ub = [38, 28, 26]):
+        #voice_ranges = {1: (19, 38), 2: (12, 28), 3: (5, 26)}
+        voice_range_list = np.zeros((3, self.N), dtype=int)
+        for i in range(1,4):
+            for j in range(self.N):
+                voice_range_list[i,j] = (lb[i-1], ub[i-1])
+        return voice_range_list
+    
+    self.voice_range_list = voice_range_bound()
+    
     def solve(self):
         population = initialize_population()
+        population.evaluate_population()
+        population._sort() # sort the population in descending order of fitness score
+        log_arr = []
         for _ in range(max_generation):
-            population.evaluate_population()
-            population._sort() # sort the population in descending order of fitness score
+            start_time = timeit.default_timer()
+            #population.evaluate_population()
+            #population._sort() # sort the population in descending order of fitness score
             slicer = int(self.population_size * 0.1)
             if slicer % 2 != 0:
                 slicer += 1
@@ -160,11 +171,15 @@ class ga_model:
                 parent_1 = mating_pool[x]
                 child_1 = crossover(parent_1, population)
                 child_1 = mutation(child_1, threshold)
-                new_population._apepnd(child_1)
+                new_population._append(child_1)
             #new_population.evaluate_population()
             population = copy.deepcopy(new_population)
             new_population = None
-        population._sort()
+            population.evaluate_population()
+            population._sort() # sort the population in descending order of fitness score
+            end_time = timeit.default_timer()
+            log_arr.append((end_time - start_time, population.population[0].overall_fitness_score))
+        #population._sort()
         best_solution = population.population[0]
         #midi_array = [[]]
         #for _ in range(3):
@@ -180,7 +195,7 @@ class ga_model:
         individual.c = initialize_chords(self.musical_input, self.chord_vocab, self.c)
         voice_range_limit = voice_range_bound()
         individual.x = initialize_harmony(self.musical_input, self.chord_vocab, self.chord_vocab_ext, self.c, self.x, voice_range_limit)
-        individual.fitness_score = fitness_calculation(individual)
+        individual.overall_fitness_score = calculate_overall_fitness(individual)
         return individual
             
     def initialize_population(self):
@@ -199,7 +214,6 @@ class ga_model:
         '''
         initialize the chords for the first iteration
         '''
-        
         
         if musical_input.tonality == 'major':
             for chord in chord_vocab:
