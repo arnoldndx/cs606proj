@@ -1,7 +1,36 @@
-from docplex.cp.model import CpoModel
+
+from docplex.cp.model import CpoModel, CpoSolveResult
+from docplex.cp.solver.solver_listener import CpoSolverListener
+
 from src.music_functions import *
 import numpy as np
 from src.midi_processing import *
+
+class ResultListener(CpoSolverListener):
+    def __init__(self):
+        super(ResultListener, self).__init__()
+        self.solver_info = list()
+
+    def solver_created(self, solver):
+        solver.context.solver.solve_with_start_next = True
+
+    def result_found(self, solver, sres: CpoSolveResult):
+        info = {}
+        if not sres.is_solution_optimal():
+            try:
+                obj_val = sres.get_objective_values()[0]
+                obj_bnd = sres.get_objective_bounds()[0]
+                time = sres.get_solve_time()
+                info["obj_val"] = obj_val
+                info["obj_bnd"] = obj_bnd
+                if len(self.solver_info) == 0:
+                    info["time"] = time
+                else:
+                    info["time"] = self.solver_info[-1]['time'] + time
+                self.solver_info.append(info)
+            except TypeError:
+                pass
+
 
 class CPModel:
     def __init__(self, model_name, musical_input, chord_vocab, chord_progression_penalties, hard_constraints, soft_constraints_weights):
@@ -325,11 +354,24 @@ class CPModel:
                 
 
     def solve(self, **kwargs):
+        recorder = ResultListener()
+        self.m.add_solver_listener(recorder)        
         sol = self.m.solve(**kwargs)
         #print(sol.get_objective_values())
         #print(sol.print_solution())
         self.sol = sol
-        return sol
+        
+        progress_data=[]
+        for result in recorder.solver_info:
+            try:
+                # print('Obj Value: ',result['obj_val'])
+                # print('Time: ',result['time'])
+                progress_data.append((result['time'],result['obj_val']))
+            except:
+                # print('result is infeasible')
+                pass
+            
+        return sol, progress_data
     
     def get_solution(self):
         chord_var_names = ['Chords_{}'.format(str(j)) for j in range(self.N)]
