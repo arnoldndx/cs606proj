@@ -274,11 +274,9 @@ class MPModel:
         recorder = ProgressDataRecorder()
         self.m.add_progress_listener(recorder)
         sol = self.m.solve(log_output = False)
-        
-        
-        
+             
         progess_data=[]
-        for data in recorder.recorded:
+        for data in recorder._recorded:
             progess_data.append((data.time,data.current_objective))
             
         midi_array = [[]]
