@@ -57,7 +57,7 @@ results_comparison = {}
 for i in range(-6,0):
     for model in models:
         progress_array = run_harmony_gen(model,args.file,args.weights,args.weights_data,args.hard_constraints_choice,args.time_limit,inputs,i)
-        results_comparison[(model,titles[i+6])] = progress_array
+        results_comparison[(model_dict[model],titles[i+6])] = progress_array
         
 # plot the results
 fig, axs = plt.subplots(3,2,figsize = (15,10))
