@@ -9,6 +9,7 @@ import os
 import sys
 import pandas as pd
 import numpy as np
+from datetime import datetime
 # from collections import defaultdict
 import timeit
 import argparse
@@ -22,6 +23,7 @@ sys.path.append('../')
 # Custom Imports
 from src.run_harmony_gen_iterator import *
 
+default_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
 # Setting up arguments
 parser = argparse.ArgumentParser()
@@ -74,9 +76,6 @@ title = titles[0]
 # plot the results
 fig, axs = plt.subplots(3,2,figsize = (15,10))
 
-for ax in axs.flat:
-    ax.set(xlabel='x-label', ylabel='y-label')
-
 # Hide x labels and tick labels for top plots and y ticks for right plots.
 for ax in axs.flat:
     ax.label_outer()
@@ -123,7 +122,8 @@ for result in results_comparison.keys():
 axs[i,j].legend()
 
     
-fig_fname = os.path.join('../outputs',
-                         f"{args.file}_{f_datetime}.png")
+fig_fname = os.path.join(default_dir,
+                         'outputs',
+                         f"{args.file}_{datetime.now().strftime('%H%M_%d%m%Y')}.png")
 
 fig.savefig(fig_fname, dpi=200)

@@ -274,7 +274,9 @@ class MPModel:
         recorder = ProgressDataRecorder()
         self.m.add_progress_listener(recorder)
         sol = self.m.solve(log_output = False)
-             
+        
+        time = sol.solve_details.time
+        
         progess_data=[]
         for data in recorder._recorded:
             progess_data.append((data.time,data.current_objective))
@@ -291,6 +293,6 @@ class MPModel:
         for j in self.c.keys(): 
             midi_array[4].append(round(sol_2[j]))
         
-        return midi_array, progess_data
+        return midi_array, progess_data, time
         
     #
