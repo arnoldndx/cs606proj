@@ -399,7 +399,7 @@ def run_harmony_gen(method,file,weights,weights_data,hard_constraints_choice,tim
         lambda_ = 0.8
     
         result = alns.iterate(harmony, omegas, lambda_, criterion,
-                              iterations=time_limit, collect_stats=True)
+                              iterations = round(time_limit / 20), collect_stats=True)
         
         
         # result
