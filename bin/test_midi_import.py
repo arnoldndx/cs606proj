@@ -56,12 +56,16 @@ results_comparison = {}
 
 for i in range(-6,0):
     for model in models:
-        progress_array = run_harmony_gen(model,args.file,args.weights,args.weights_data,args.hard_constraints_choice,args.time_limit,inputs,i)
-        results_comparison[(model_dict[model],titles[i+6])] = progress_array
+        try:
+            progress_array = run_harmony_gen(model,args.file,args.weights,args.weights_data,args.hard_constraints_choice,args.time_limit,inputs,i)
+            results_comparison[(model_dict[model],titles[i+6])] = progress_array
+        except:
+            print('=================== no feasible solution')
+            results_comparison[(model_dict[model],titles[i+6])] = 'the model was note able to produce a feasible solution'
+            pass
         
 # plot the results
 fig, axs = plt.subplots(3,2,figsize = (15,10))
-axs.label_outer()
 
 i = 0
 j = 0
@@ -107,10 +111,13 @@ for result in results_comparison.keys():
     # create the x-s and y-s
     time = []
     obj_val = []
-    for data in results_comparison[result]:
-        time.append(data[0])
-        obj_val.append(data[1])
-    axs[i,j].plot(time, obj_val, label = result[0])
+    if isinstance(results_comparison[result],str):
+        pass
+    else:
+        for data in results_comparison[result]:
+            time.append(data[0])
+            obj_val.append(data[1])
+        axs[i,j].plot(time, obj_val, label = result[0])
 
 #set the last legend
 axs[i,j].legend()
