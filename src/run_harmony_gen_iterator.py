@@ -155,14 +155,14 @@ def run_harmony_gen(method,file,weights,weights_data,hard_constraints_choice,tim
                             timelimit=time_limit)
          
         #midi_array_with_chords = mp_model.solve()
-        midi_array_with_chords, progress_data = mp_model.solve()
+        midi_array_with_chords, progress_data, solve_time = mp_model.solve()
         
         
-        final_cost_list= src.evaluate.evaluate_cost(midi_array_with_chords[:4], midi_array_with_chords[4], music.key, 
+        final_cost_list = src.evaluate.evaluate_cost(midi_array_with_chords[:4], midi_array_with_chords[4], music.key, 
                                                     music.tonality, music.meter, music.first_on_beat,mode="D")
     
-        finalcost =sum( v for k,v in final_cost_list.items() if k[:4]=="soft")    
-        addon= finalcost-  progress_data[-1][1]
+        finalcost = sum( v for k,v in final_cost_list.items() if k[:4]=="soft")    
+        addon = finalcost -  progress_data[-1][1]
         #print(finalcost, addon)
         
         # csv output  
@@ -172,8 +172,10 @@ def run_harmony_gen(method,file,weights,weights_data,hard_constraints_choice,tim
         # objective progress output 
         progress_array= [(x[0], x[1]+addon)  for x in progress_data]
         #print(progress_array)
-    
-    
+        
+        logger.info(f'==============================================')
+        logger.info(f'Best objective is {finalcost}')
+        #logger.info(f'Solution time is {solve_time}')
     
     
     #%%#############################################################################################################
@@ -214,7 +216,7 @@ def run_harmony_gen(method,file,weights,weights_data,hard_constraints_choice,tim
                            soft_constraint_w_weights)
         
         #Solving Model
-        solution, progress_array = cp_model.solve(log_output = True, TimeLimit = time_limit, LogVerbosity = 'Verbose')
+        solution, progress_array = cp_model.solve(log_output = True, TimeLimit = time_limit, LogVerbosity = 'Quiet')
         result = cp_model.get_solution()
               
        
@@ -226,6 +228,12 @@ def run_harmony_gen(method,file,weights,weights_data,hard_constraints_choice,tim
         
         # midi output
         midi_array = result['Notes']
+        
+        # get solve time and objective value
+        
+        logger.info(f'==============================================')
+        logger.info(f'Best objective is {solution.get_objective_values()[0]}')
+        #logger.info(f'Solution time is {solution.get_solve_time()}')
         
     #%%  
     #%%#############################################################################################################  
@@ -407,7 +415,8 @@ def run_harmony_gen(method,file,weights,weights_data,hard_constraints_choice,tim
         # csv output
         df_solution = pd.DataFrame(np.array(ALNS_solution.HarmonyInput))   
         
-        logger.info(f'Best heuristic objective is {ALNS_solution.objective()}')
+        logger.info(f'==============================================')
+        logger.info(f'Best objective is {ALNS_solution.objective()}')
         
         # midi output
         midi_array = ALNS_solution.HarmonyInput[:4]
@@ -424,7 +433,6 @@ def run_harmony_gen(method,file,weights,weights_data,hard_constraints_choice,tim
     run_time = stop - start
     
     # print run time
-    logger.info(f'==============================================')
     logger.info(f'Run Time: {run_time}')  
     
     #%%
