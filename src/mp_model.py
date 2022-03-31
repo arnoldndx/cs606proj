@@ -37,8 +37,8 @@ class MPModel:
                             #'chord repetition': self.hard_constraint_chord_repetition,
                             'chord membership': self.hard_constraint_chord_membership,
                              'first last chords': self.hard_constraint_first_last_chords,
-                             #'chord bass repetition': self.hard_constraint_chord_bass_repetition,
-                             #'adjacent bar chords': self.hard_constraint_adjacent_bar_chords,
+                             'chord bass repetition': self.hard_constraint_chord_bass_repetition,
+                             'adjacent bar chords': self.hard_constraint_adjacent_bar_chords,
                              'voice crossing': self.hard_constraint_voice_crossing,
                              'parallel movement': self.hard_constraint_parallel_movement,
                              'chord spacing': self.hard_constraint_chord_spacing,
@@ -73,7 +73,7 @@ class MPModel:
             if v>0 and k in soft_constraints:
                # print(k)
             # if weight input >0 the constraint is turned on  
-                self.costs.append(soft_constraints[k](weight=v))
+                self.costs.append(soft_constraints[k]())
                 counter+=1
 
         #Objective Function
@@ -90,7 +90,7 @@ class MPModel:
         for j in range(self.N):
             self.m.add_constraint(self.x[0,j] == self.musical_input.melody[j])
     
-    def hard_constraint_voice_range(self, lb = [19, 12, 5], ub = [38, 28, 26]):
+    def hard_constraint_voice_range(self, lb = [17, 12, 4], ub = [41, 36, 28]):
         #voice_ranges = {1: (19, 38), 2: (12, 28), 3: (5, 26)}
         for i in range(1,4):
             for j in range(self.N):
@@ -129,6 +129,10 @@ class MPModel:
                     n1.append (chord.index)
             self.m.add_constraint(self.c[0] == n)
             self.m.add_constraint(self.c[self.N-1]<=max(n1))
+
+        #First and last bass notes must be the tonic note
+        self.m.add_constraint(self.m.sum(self.x[3,0] + k*12 == self.K for k in range(-3,1)) == 1)
+        self.m.add_constraint(self.m.sum(self.x[3,self.N-1] + k*12 == self.K for k in range(-3,1)) == 1)
         
     def hard_constraint_chord_repetition(self):
         for j in range(self.N-1):
@@ -178,16 +182,20 @@ class MPModel:
                 
                 
 #***************************************************************************************************************    
-    def soft_constraint_chord_progression(self, weight=1):
+    def soft_constraint_chord_progression(self):
+        weight = self.soft_constraints_w_weights['chord progression']
         cost0= self.m.continuous_var_list(self.N, 0,100, "Progression cost")
         length=len(self.chord_vocab)
                 
         for j in range(self.N-1):
             for c1 in range(length):
                 for c2 in range(length):
-                    self.m.add_constraint(cost0[j]>=weight*self.m.logical_and(c1==self.c[j],c2==self.c[j+1])*self.chord_progression_costs[(c1,c2)]) 
-        return cost0 
-    def soft_constraint_leap_resolution(self,max_leap=10, weight=1): # leaps more than an interval of a major 6th should resolve in the opposite direction by stepwise motion(
+                    self.m.add_constraint(cost0[j]>=weight*self.m.logical_and(c1==self.c[j],c2==self.c[j+1])
+                                          *self.chord_progression_costs[(c1,c2)]) 
+        return cost0
+
+    def soft_constraint_leap_resolution(self,max_leap=10): # leaps more than an interval of a major 6th should resolve in the opposite direction by stepwise motion(
+        weight = self.soft_constraints_w_weights['leap resolution']
         cost1= self.m.continuous_var_list(self.N, 0,100, "Leap resolution cost")
         for j in range(self.N-1):
             self.m.add_constraint(cost1[j]>=weight*self.m.sum(1-(self.x[i,j] - self.x[i,j+1] <= max_leap) for i in range(1,4) ) )
@@ -195,18 +203,22 @@ class MPModel:
 
     def soft_constraint_melodic_movement(weight=1):
         pass
-    def soft_constraint_chord_repetition(self, weight=2):
+    
+    def soft_constraint_chord_repetition(self):
+        weight = self.soft_constraints_w_weights['chord repetition']
         cost2= self.m.continuous_var_list(self.N, 0,100, "Chord repetition cost")
         for j in range(self.N-1):
             self.m.add_constraint(cost2[j]>=weight* (self.c[j]==self.c[j+1]))
         return cost2
+    
     def soft_constraint_chord_bass_repetition(weight=1): 
         pass
+    
     def soft_constraint_adjacent_bar_chords(weight=1):
         pass
     
-    
-    def soft_constraint_note_repetition(self, weight=2):
+    def soft_constraint_note_repetition(self):
+        weight = self.soft_constraints_w_weights['note repetition']
         cost3= self.m.continuous_var_list(self.N, 0,100, "Repetition cost")
         for j in range(self.N-2):
             self.m.add_constraint(cost3[j]>= weight *
@@ -217,7 +229,8 @@ class MPModel:
     def soft_constraint_parallel_movement(weight=1):# is a hard constraint
         pass
     
-    def soft_constraint_voice_overlap(self,weight=1):
+    def soft_constraint_voice_overlap(self):
+        weight = self.soft_constraints_w_weights['voice overlap']
         cost4= self.m.continuous_var_list(self.N, 0,100, "voice crossing cost")
         for i in range(3):
             for j in range(self.N-1):
@@ -226,26 +239,29 @@ class MPModel:
     def soft_constraint_chord_spacing(self, weight=1):
         pass
     
-    def soft_constraint_distinct_notes(self,weight=1):#Chords with more distinct notes (i.e. max 3) are rewarded
+    def soft_constraint_distinct_notes(self):#Chords with more distinct notes (i.e. max 3) are rewarded
+        weight = self.soft_constraints_w_weights['distinct notes']
         cost5= self.m.continuous_var_list(self.N, 0,100, "Distinct notes cost")
         for j in range(self.N):
             self.m.add_constraint(cost5[j]>=weight*(-1+
                                   self.m.sum( self.m.sum( (self.x[i,j]- self.x[k,j]==12) + (self.x[i,j]- self.x[k,j]==24) + (self.x[i,j]- self.x[k,j]==36) for i in range(3) ) for k in range(4) ))
                                   ) 
         return cost5
+    
     def soft_constraint_voice_crossing(weight=1): # is a hard constraint
         pass
     
-    def soft_constraint_voice_range(self, slb = [24,17, 10], sub = [33,23 ,21],weight=1):
+    def soft_constraint_voice_range(self, slb = [19, 14, 6], sub = [39, 34, 26]):
+        weight = self.soft_constraints_w_weights['voice range']
         cost6= self.m.continuous_var_list(self.N, 0,100, "voice range cost")
-        
         
         for j in range(self.N):
             cost6[j]>=weight*self.m.sum( self.x[i,j] -sub[i-1]  for i in range(1,4))
             cost6[j]>=weight*self.m.sum( slb[i-1]-self.x[i,j]  for i in range(1,4))
         return  cost6
 
-    def soft_constraint_second_inversion(self,weight=1):
+    def soft_constraint_second_inversion(self):
+        weight = self.soft_constraints_w_weights['second inversion']
         cost7= self.m.continuous_var_list(self.N, 0,100, "second inversion cost")
         for chord in self.chord_vocab:
             note = list(chord.note_intervals)[-1]
@@ -254,7 +270,9 @@ class MPModel:
                 #Penalising 2nd inversion chords if it is not used as a passing chord
                 self.m.add_constraint(cost7[j]>=weight*((self.c[j] == chord.index) - self.m.sum((self.x[3,j]==note + p*12) for p in range(-3,4) )))
         return  cost7
-    def soft_constraint_first_inversion(self,weight=1):
+    
+    def soft_constraint_first_inversion(self):
+        weight = self.soft_constraints_w_weights['first inversion']
         cost8= self.m.continuous_var_list(self.N, 0,100, "first inversion cost")
         for chord in self.chord_vocab:
             note = list(chord.note_intervals)[1]
@@ -266,7 +284,8 @@ class MPModel:
             '''for j in [0, self.N-1]:
                 self.m.add(self.m.if_then(self.m.logical_and(self.c[j] == chord.index, self.x[3,j] % 12 == note),
                                           self.costs['first inversion'][3,j] >= self.soft_constraints_weights['first inversion']))'''
-        return  cost8                        
+        return  cost8
+
     def solve(self, log = True):
          
         #recorder = ProgressDataRecorder()
