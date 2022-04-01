@@ -158,7 +158,7 @@ if args.method == 'mp':
                         timelimit=args.time_limit)
      
     #midi_array_with_chords = mp_model.solve()
-    midi_array_with_chords, progress_data = mp_model.solve()
+    midi_array_with_chords, progress_data, solve_time = mp_model.solve()
     
     
     final_cost_list= src.evaluate.evaluate_cost(midi_array_with_chords[:4], midi_array_with_chords[4], music.key, 
