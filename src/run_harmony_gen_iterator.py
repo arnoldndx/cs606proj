@@ -235,7 +235,8 @@ def run_harmony_gen(method,file,weights,weights_data,hard_constraints_choice,tim
         logger.info(f'Best objective is {solution.get_objective_values()[0]}')
         #logger.info(f'Solution time is {solution.get_solve_time()}')
         
-    #%%  
+    #%%
+    
     #%%#############################################################################################################  
     elif method == 'alns':
         #%%    
@@ -407,7 +408,7 @@ def run_harmony_gen(method,file,weights,weights_data,hard_constraints_choice,tim
         lambda_ = 0.8
     
         result = alns.iterate(harmony, omegas, lambda_, criterion,
-                              iterations = round(time_limit / 20), collect_stats=True)
+                              iterations = round(len(music.melody) * 5 / music.meter), collect_stats=True)
         
         
         # result
