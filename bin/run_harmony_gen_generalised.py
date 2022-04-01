@@ -58,6 +58,9 @@ parser.add_argument('--weights_data', type = str, default = "../data/soft_constr
 parser.add_argument('--hard_constraints_choice', type = str, default = '../data/hard_constraint_choice.csv', help = 'Filepath for hard constraint choices')
 parser.add_argument('--time_limit', type = int, default = 600, help = 'Time limit for iterations (MP/CP) or Iteration limit for ALNS')
 parser.add_argument('--input_melody', type = str, default = '../data/test_melody.mid', help = "Filepath for the input melody. Valid filetypes: .csv, .mid")
+parser.add_argument('--max_generation', type = int, default = 300, help = 'number of generations to iterate through')
+parser.add_argument('--population_size', type = int, default = 100, help = 'population size')
+parser.add_argument('--mutation_probability', type = list, default = [0.6, 0.9], help = 'mutation probability = [lower_bound, higher_bound]')
 
 #%%
 # Starting up
@@ -263,15 +266,15 @@ elif args.method == 'ga':
     else:
         penalties_chord_progression = penalties_chord_progression_minor
         chord_vocab = chord_vocab_minor
-        
+    
     ga_model = GAmodel(musical_input=music,
                        chord_vocab=chord_vocab,
-                       max_generation=150,
-                       population_size=100,
+                       max_generation=args.max_generation,
+                       population_size=args.population_size,
                        hard_constraints=hard_constraints,
                        soft_constraint_w_weights=soft_constraint_w_weights,
                        chord_progression_penalties=penalties_chord_progression,
-                       mutation_probability=[0.5,0.9])
+                       mutation_probability=args.mutation_probability)
     
     df_solution, midi_array, progress_array = ga_model.solve()
     
