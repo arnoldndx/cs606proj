@@ -13,6 +13,7 @@ import timeit
 import argparse
 import logging
 import copy
+import random
 import numpy.random as rnd
 
 sys.path.append('../')
@@ -36,6 +37,9 @@ import src.evaluate
 import src.music_functions
 from src.mp_model_for_ALNS_construction import MPModelALNS
 
+# for GA
+from src.ga_model import *
+
 
 
 logger = logging.getLogger(__file__)
@@ -43,7 +47,7 @@ logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s: %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
 
-def run_harmony_gen(method,file,weights,weights_data,hard_constraints_choice,time_limit,input_melody,music_index):
+def run_harmony_gen(method,file,weights,weights_data,hard_constraints_choice,time_limit,input_melody,music_index,generation=300,population=100,mutation_probability=[0.6, 0.9]):
     # Setting up arguments
     # parser.add_argument('--method', type = str, default = 'mp', choices=['mp', 'cp', 'ga', 'alns'])
     # parser.add_argument("--file", type = str, default = 'harmony_gen', help = "Filename prefix. "
@@ -234,7 +238,51 @@ def run_harmony_gen(method,file,weights,weights_data,hard_constraints_choice,tim
         logger.info(f'==============================================')
         logger.info(f'Best objective is {solution.get_objective_values()[0]}')
         #logger.info(f'Solution time is {solution.get_solve_time()}')
+    
+    #%%#############################################################################################################  
+    elif method == 'ga':
+    
+         # Importing Chord Vocabulary
+        chord_df_major = pd.read_csv("../data/chord_vocabulary_major.csv", index_col = 0)
+        chord_df_minor = pd.read_csv("../data/chord_vocabulary_minor.csv", index_col = 0)
+        chord_vocab_major, chord_vocab_minor = [], []
+        for index, name, note_intervals in chord_df_major.itertuples():
+            chord_vocab_major.append(Chord(index, name, [int(x) for x in note_intervals.split(',')]))
+        for index, name, note_intervals in chord_df_minor.itertuples():
+            chord_vocab_minor.append(Chord(index, name, [int(x) for x in note_intervals.split(',')]))
+    
+        # Defining penalties for chord progression
+        penalties_chord_progression_major = pd.read_csv("../data/chord_progression_major.csv", header = 1, index_col = 0)
+        penalties_chord_progression_minor = pd.read_csv("../data/chord_progression_minor.csv", header = 1, index_col = 0)
+        penalties_chord_progression_major = dict(penalties_chord_progression_major.stack())
+        penalties_chord_progression_minor = dict(penalties_chord_progression_minor.stack())
         
+    
+        # Defining which hard constraints to use
+        hard_constraints = {x: True if x in ['musical input', 'voice range', 'chord membership', 'first last chords',
+                                             'voice crossing', 'parallel movement',
+                                             'chord spacing', 'incomplete chord'] else False for x in hard_constraint_options}
+        
+        # Model
+    
+        if music.tonality == 'major':
+            penalties_chord_progression = penalties_chord_progression_major
+            chord_vocab = chord_vocab_major
+        else:
+            penalties_chord_progression = penalties_chord_progression_minor
+            chord_vocab = chord_vocab_minor
+
+        ga_model = GAmodel(musical_input=music,
+                           chord_vocab=chord_vocab,
+                           max_generation=generation,
+                           population_size=population,
+                           hard_constraints=hard_constraints,
+                           soft_constraint_w_weights=soft_constraint_w_weights,
+                           chord_progression_penalties=penalties_chord_progression,
+                           mutation_probability=mutation_probability)
+    
+        df_solution, midi_array, progress_array = ga_model.solve()
+    
     #%%  
     #%%#############################################################################################################  
     elif method == 'alns':
