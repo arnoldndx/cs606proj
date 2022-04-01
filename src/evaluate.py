@@ -6,7 +6,8 @@ def evaluate_cost(list_x, list_c, key, tonality, meter = 4, first_on_beat = 0, m
                   chord_vocab = None,
                   chord_progression_penalties = None,
                   hard_constraints = None, hard_constraint_weight = 1000,
-                  soft_constraint_weights = None): 
+                  soft_constraint_weights = None,
+                  gene_split = False): 
     '''
     Parameters
     ----------
@@ -26,6 +27,7 @@ def evaluate_cost(list_x, list_c, key, tonality, meter = 4, first_on_beat = 0, m
         The default is "D".
         If "L": return will be a list of sum-of-cost for each hard/soft constraint
         If "D": return will be a dictionary of sum-of-cost for each hard/soft constraint
+        If "GA": return will be a list of total costs broken down per measure
         Otherwise, : return will be one number,sum of all costs for all constraints
     chord_vocab : list of Chord objects or None
         If None, it will be read from csv.
@@ -37,6 +39,7 @@ def evaluate_cost(list_x, list_c, key, tonality, meter = 4, first_on_beat = 0, m
         How much to weight hard constraint costs. For comparison, by convention the total weight of soft constraints is 100.
     soft_constraint_weights : dict or None. If none, weights will be read from csv.
         Dict key is the name of soft constraint. Dict value is an int from 1 to 99 inclusive, indicating the weight of that soft constraint.
+        gene_split: boolean True or False. Default False; if True, return a list of results representing the cost for all genes. Else return the result as whole.
     
     Returns
     list or number
@@ -99,28 +102,36 @@ def evaluate_cost(list_x, list_c, key, tonality, meter = 4, first_on_beat = 0, m
 
     def chord_repetition(weight):
         assert weight > 0
-        cost = 0
+        cost = [0] * N
         for j in range(N-1):
-            cost += c[j+1] == c[j]
-        return weight * cost
+            cost[j] += c[j+1] == c[j]
+        return [weight * c for c in cost]
     
     def chord_bass_repetition(weight):
         assert weight > 0
-        cost = sum(c[j] == c[j+1] and x[3,j] == x[3,j+1] for j in range(N-1))
-        return weight * cost
+        #cost = sum(c[j] == c[j+1] and x[3,j] == x[3,j+1] for j in range(N-1))
+        cost = [0] * N
+        for j in range(N-1):
+            cost[j] += c[j] == c[j+1] and x[3,j] == x[3,j+1]
+        return [weight * c for c in cost]
     
     def adjacent_bar_chords(weight):
         assert weight > 0
-        cost = 0
+        #cost = 0
+        cost = [0] * N
         for j in range(1,N):
             if j % meter == first_on_beat:
-                cost += (c[j] == c[j-1])
-        return weight * cost
+                cost[j] += c[j] == c[j-1]
+        return [weight * c for c in cost]
     
     def voice_crossing(weight):
         assert weight > 0
-        cost = sum(x[i,j] < x[i+1,j] for i in range(3) for j in range(N))
-        return weight * cost
+        cost = [0] * N
+        #cost = sum(x[i,j] < x[i+1,j] for i in range(3) for j in range(N))
+        for i in range(3):
+            for j in range(N):
+                cost[j] += x[i,j] < x[i+1,j]
+        return [weight * c for c in cost]
     
     def parallel_movement(weight, intervals = [0, 7]):
         assert weight > 0
@@ -128,39 +139,49 @@ def evaluate_cost(list_x, list_c, key, tonality, meter = 4, first_on_beat = 0, m
         for k in range(-1, 3):
             if k != 0:
                 intervals_ext.extend([interval + 12 * k for interval in intervals])
-        cost = 0
+            else:
+                intervals_ext.append(0)
+        cost = [0] * N
         for j in range(N-1):
             for i in range(3):
                 for k in range(i+1, 4):
                     for interval in intervals_ext:
-                        cost += x[i,j]-x[k,j] == interval and x[i,j] != x[i,j+1] and x[i,j+1]-x[k,j+1] == interval
-        return weight * cost
+                        #cost += x[i,j]-x[k,j] == interval and x[i,j] != x[i,j+1] and x[i,j+1]-x[k,j+1] == interval
+                        cost[j] += x[i,j]-x[k,j] == interval and x[i,j] != x[i,j+1] and x[i,j+1]-x[k,j+1] == interval
+        #return weight * cost
+        return [weight * c for c in cost]
     
     def chord_spacing(weight, max_spacing = [12, 12, 16]):
         assert weight > 0
-        cost = 0
+        cost = [0] * N
         for j in range(N):
             for i in range(3):
-                cost += ((x[i,j] - x[i+1,j]) > max_spacing[i])
-        return weight * cost
+                #cost += ((x[i,j] - x[i+1,j]) > max_spacing[i])
+                cost[j] += x[i,j] - x[i+1,j] > max_spacing[i]
+        #return weight * cost
+        return [weight * c for c in cost]
     
     def incomplete_chord(weight): #The 4 voices must fully cover the 3 notes in a chord
         assert weight > 0
-        cost = 0
+        cost = [0] * N
         for j in range(N):
-            cost += any([(note + key) % 12 not in [x[0,j]%12, x[1,j]%12, x[2,j]%12, x[3,j]%12] for note in chord_vocab[c[j]].note_intervals]) #Evaluates to True if any note in the assigned chord c[j] is not covered by any of the 4 voices
+            #cost += any([(note + key) % 12 not in [x[0,j]%12, x[1,j]%12, x[2,j]%12, x[3,j]%12] for note in chord_vocab[c[j]].note_intervals])
+            #Evaluates to True if any note in the assigned chord c[j] is not covered by any of the 4 voices
+            cost[j] += any([(note + key) % 12 not in [x[0,j]%12, x[1,j]%12, x[2,j]%12, x[3,j]%12] for note in chord_vocab[c[j].index].note_intervals])
         
-        return weight * cost
+        #return weight * cost
+        return [weight * c for c in cost]
     
     def chord_distribution(weight):
         #Distance between adjacent lower voices must not be less than distance between adjacent higher voices.
         assert weight > 0
-        cost = 0
+        cost = [0] * N
         for j in range(N):
             for i in range(2):
-                cost += x[i,j] - x[i+1,j] > x[i+1,j] - x[i+2,j]
-        
-        return weight * cost
+                #cost += x[i,j] - x[i+1,j] > x[i+1,j] - x[i+2,j]
+                cost[j] += (x[i,j] - x[i+1,j]) > (x[i+1,j] - x[i+2,j])
+        #return weight * cost
+        return [weight * c for c in cost]
 
 #***************************************************************************************************************  
 
@@ -168,36 +189,47 @@ def evaluate_cost(list_x, list_c, key, tonality, meter = 4, first_on_beat = 0, m
 
     def hard_constraint_voice_range(weight = hard_constraint_weight, lb = [17, 12, 4], ub = [41, 36, 28]):
         assert weight > 0
-        cost = 0
+        cost = [0] * N
         for i in range(1,4):
             for j in range(N):
-                cost += (x[i,j] < lb[i-1]) + (x[i,j] > ub[i-1])
-        return weight * cost
+                #cost += (x[i,j] < lb[i-1]) + (x[i,j] > ub[i-1])
+                cost[j] += (x[i,j] < lb[i-1]) + (x[i,j] > ub[i-1])
+        #return weight * cost
+        return [weight * c for c in cost]
     
     def hard_constraint_chord_membership(weight = hard_constraint_weight): #All notes must belong to the same chord
         assert weight > 0
-        cost = 0
+        cost = [0] * N
         for j in range(N):
-            notes = transpose(chord_vocab[c[j]].note_intervals, n_semitones = key, mod = True, ascending = True)
+            notes = transpose(chord_vocab[c[j].index].note_intervals, n_semitones = key, mod = True, ascending = True)
             for i in range(4):
-                cost += (x[i,j] % 12) not in notes
-        return weight * cost
+                #cost += (x[i,j] % 12) not in notes
+                cost[j] += (x[i,j] % 12) not in notes
+        return [weight * c for c in cost]
+        #return weight * cost
     
     def hard_constraint_first_last_chords(weight = hard_constraint_weight):
         assert weight > 0
-        cost = 0
+        cost = [0] * N
         if tonality == "major":
-            cost += chord_vocab[c[0]].name != "I"
-            cost += chord_vocab[c[N-1]].name != "I"
+            #cost += chord_vocab[c[0]].name != "I"
+            #cost += chord_vocab[c[N-1]].name != "I"
+            cost[0] += chord_vocab[c[0].index].name != "I"
+            cost[N-1] += chord_vocab[c[N-1].index].name != "I"
         else:
-            cost += chord_vocab[c[0]].name != "i"
-            cost += chord_vocab[c[N-1]].name not in ["i", "I"]
+            #cost += chord_vocab[c[0]].name != "i"
+            #cost += chord_vocab[c[N-1]].name not in ["i", "I"]
+            cost[0] += chord_vocab[c[0].index].name != "i"
+            cost[N-1] += chord_vocab[c[N-1].index].name not in ["i", "I"]
         
         #First and last bass notes must be the tonic note
-        cost += x[3,0] % 12 != key
-        cost += x[3,N-1] % 12 != key
+        #cost += x[3,0] % 12 != key
+        #cost += x[3,N-1] % 12 != key
+        cost[0] += x[3,0] % 12 != key
+        cost[N-1] += x[3,N-1] % 12 != key
         
-        return weight * cost
+        return [weight * c for c in cost]
+        #return weight * cost
 
     def hard_constraint_chord_repetition(weight = hard_constraint_weight):
         return chord_repetition(weight)
@@ -229,8 +261,13 @@ def evaluate_cost(list_x, list_c, key, tonality, meter = 4, first_on_beat = 0, m
 
     def soft_constraint_chord_progression(weight = soft_constraint_w_weights['chord progression'], progression_costs = chord_progression_costs):
         assert weight > 0
-        cost = sum(chord_progression_costs[chord_vocab[c[j]].name, chord_vocab[c[j+1]].name] for j in range(N-1))
-        return weight * cost
+        cost = [0] * N
+        for j in range(N-1):
+            #print((chord_progression_costs))
+            cost[j] += chord_progression_costs[chord_vocab[c[j].index].name, chord_vocab[c[j+1].index].name]
+        #cost = sum(chord_progression_costs[chord_vocab[c[j]].name, chord_vocab[c[j+1]].name] for j in range(N-1))
+        return [weight * c for c in cost]
+        #return weight * cost
 
     def soft_constraint_chord_repetition(weight = soft_constraint_w_weights['chord repetition']):
         return chord_repetition(weight)
@@ -240,29 +277,49 @@ def evaluate_cost(list_x, list_c, key, tonality, meter = 4, first_on_beat = 0, m
     
     def soft_constraint_leap_resolution(weight = soft_constraint_w_weights['leap resolution'], max_leap = 10): # leaps more than an interval of a major 6th should resolve in the opposite direction by stepwise motion(
         assert weight > 0
-        cost = sum((x[i,j] - x[i,j+1] > max_leap for i in range(1,4) for j in range(N-1)))
-        return weight * cost
+        cost = [0] * N
+        for i in range(1,4):
+            for j in range(N-1):
+                cost[j] += x[i,j] - x[i,j+1] > max_leap
+        #cost = sum((x[i,j] - x[i,j+1] > max_leap for i in range(1,4) for j in range(N-1)))
+        return [weight * c for c in cost]
+        #return weight * cost
     
     def soft_constraint_melodic_movement(weight = soft_constraint_w_weights['melodic movement']):
         #This is continuous method. If binary method, leap_interval = {1: 12, 2: 12, 3: 16}. Incur cost if leap is more than leap interval.
         assert weight > 0
-        cost = sum(abs(x[i,j+1] - x[i,j])/12 for i in range(1,4) for j in range(N-1))
-        return weight * cost
+        cost = [0] * N
+        for i in range(1,4):
+            for j in range(N-1):
+                cost[j] += abs(x[i,j+1] - x[i,j])/12
+        #cost = sum(abs(x[i,j+1] - x[i,j])/12 for i in range(1,4) for j in range(N-1))
+        return [weight * c for c in cost]
+        #return weight * cost
 
     def soft_constraint_note_repetition(weight = soft_constraint_w_weights['note repetition']):
         assert weight > 0
-        cost = sum(sum( (x[i,j]==x[i,j+1]) and (x[i,j+1]==x[i,j+2]) 
-                          for i in range(1,4))
-                          for j in range(N-2))
-        return weight * cost
+        cost = [0] * N
+        for i in range(1,4):
+            for j in range(N-2):
+                cost[j] += (x[i,j]==x[i,j+1]) and (x[i,j+1]==x[i,j+2])
+        #cost = sum(sum( (x[i,j]==x[i,j+1]) and (x[i,j+1]==x[i,j+2]) 
+        #                  for i in range(1,4))
+        #                  for j in range(N-2))
+        return [weight * c for c in cost]
+        #return weight * cost
     
     def soft_constraint_parallel_movement(weight = soft_constraint_w_weights['parallel movement'], discouraged_intervals = [0, 7]):
         return parallel_movement(weight, intervals = discouraged_intervals)
     
     def soft_constraint_voice_overlap(weight = soft_constraint_w_weights['voice overlap']):
         assert weight > 0
-        cost = sum(x[i,j] > x[i+1,j] and x[i+1,j+1] > x[i,j] for i in range(3) for j in range(N-1))
-        return weight * cost
+        cost = [0] * N
+        for i in range(3):
+            for j in range(N-1):
+                cost[j] += x[i,j] > x[i+1,j] and x[i+1,j+1] > x[i,j]
+        #cost = sum(x[i,j] > x[i+1,j] and x[i+1,j+1] > x[i,j] for i in range(3) for j in range(N-1))
+        return [weight * c for c in cost]
+        #return weight * cost
     
     def soft_constraint_adjacent_bar_chords(weight = soft_constraint_w_weights['adjacent bar chords']):
         return adjacent_bar_chords(weight)
@@ -272,18 +329,22 @@ def evaluate_cost(list_x, list_c, key, tonality, meter = 4, first_on_beat = 0, m
     
     def soft_constraint_distinct_notes(weight = soft_constraint_w_weights['distinct notes']): #Chords with 3 notes repeated are penalised #Chords with repeated 3rd are penalised
         assert weight > 0
-        cost = 0
+        #cost = 0
+        cost = [0] * N
         for j in range(N):
-            note = chord_vocab[c[j]].note_intervals[1]
+            note = chord_vocab[c[j].index].note_intervals[1]
             note = (note + key) % 12
             for i1 in range(4):
                 for i2 in range(4):
                     if i1 < i2:
                         for i3 in range(4):
                             if i2 < i3:
-                                cost += x[i1,j]%12 == x[i2,j]%12 and x[i2,j]%12 == x[i3,j]%12 #Penalising 3 same notes in a chord
-                        cost += x[i1,j]%12 == note and x[i2,j]%12 == note #Doubled 3rd note
-        return weight * cost
+                                cost[j] += x[i1,j]%12 == x[i2,j]%12 and x[i2,j]%12 == x[i3,j]%12
+                                #cost += x[i1,j]%12 == x[i2,j]%12 and x[i2,j]%12 == x[i3,j]%12 #Penalising 3 same notes in a chord
+                        cost[j] += (x[i1,j]%12 == note and x[i2,j]%12 == note)
+                        #cost += x[i1,j]%12 == note and x[i2,j]%12 == note #Doubled 3rd note
+        return [weight * c for c in cost]
+        #return weight * cost
     
     def soft_constraint_incomplete_chord(weight = soft_constraint_w_weights['incomplete chord']):
         return incomplete_chord(weight)
@@ -293,18 +354,31 @@ def evaluate_cost(list_x, list_c, key, tonality, meter = 4, first_on_beat = 0, m
     
     def soft_constraint_voice_range(weight = soft_constraint_w_weights['voice range'], lb = [17, 12, 4], ub = [41, 36, 28], threshold = 2):
         assert weight > 0
-        cost = sum((x[i,j] < (lb[i-1] + threshold)) + (x[i,j] > (ub[i-1] - threshold)) for i in range(1,4) for j in range(N))
-        return weight * cost
+        #cost = sum((x[i,j] < (lb[i-1] + threshold)) + (x[i,j] > (ub[i-1] - threshold)) for i in range(1,4) for j in range(N))
+        cost = [0] * N
+        for i in range(1,4):
+            for j in range(N):
+                cost[j] += (x[i,j] < (lb[i-1] + threshold)) + (x[i,j] > (ub[i-1] - threshold))
+        return [weight * c for c in cost]
+        #return weight * cost
 
     def soft_constraint_second_inversion(weight = soft_constraint_w_weights['second inversion']):
         assert weight > 0
-        cost = sum(x[3,j] % 12 == (chord_vocab[c[j]].note_intervals[-1] + key) % 12 for j in range(N))
-        return weight * cost
+        #cost = sum(x[3,j] % 12 == (chord_vocab[c[j]].note_intervals[-1] + key) % 12 for j in range(N))
+        cost = [0] * N
+        for j in range(N):
+            cost[j] += x[3,j] % 12 == (chord_vocab[c[j].index].note_intervals[-1] + key) % 12
+        return [weight * c for c in cost]
+        #return weight * cost
     
     def soft_constraint_first_inversion(weight = soft_constraint_w_weights['first inversion']):
         assert weight > 0
-        cost = sum(x[3,j] % 12 == (chord_vocab[c[j]].note_intervals[1] + key) % 12 for j in range(N))
-        return weight * cost
+        #cost = sum(x[3,j] % 12 == (chord_vocab[c[j]].note_intervals[1] + key) % 12 for j in range(N))
+        cost = [0] * N
+        for j in range(N):
+            cost[j] += x[3,j] % 12 == (chord_vocab[c[j].index].note_intervals[1] + key) % 12
+        return [weight * c for c in cost]
+        #return weight * cost
     
     def soft_constraint_chord_distribution(weight = soft_constraint_w_weights['chord distribution']):
         return chord_distribution(weight)
@@ -358,5 +432,12 @@ def evaluate_cost(list_x, list_c, key, tonality, meter = 4, first_on_beat = 0, m
         result_list = list(result.values())
         if mode == "L":
             return result_list
+        elif mode == "GA":
+            scores = [0] * N
+            for i in result_list:
+                if type(i) == list:
+                    for x in range(N):
+                        scores[x] += i[x]
+            return scores
         else:
-            return sum(result_list)
+            return sum(sum(total_cost) for total_cost in result_list if total_cost != 0)
