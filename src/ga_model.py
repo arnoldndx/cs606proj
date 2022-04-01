@@ -2,6 +2,7 @@ import timeit
 import copy
 import random
 import numpy as np
+import pandas as pd
 import src.music_functions
 import src.evaluate
 
@@ -89,6 +90,7 @@ class Individual:
             hard_constraint_weight=1000,
             soft_constraint_weights=self.soft_constraint_weights
         )
+        score_list = [score / self.individual_len for score in score_list]
         overall_score = sum(x for x in score_list)
         return overall_score, score_list
     
@@ -103,17 +105,20 @@ class Individual:
             max_val = max(score_list_pair)
             if count == 0:
                 i = score_list_pair.index(max_val)
-                if i == 0:
-                    i_r = score_list_pair[i+1]
-                    score_list_pair.remove(i_r)
-                elif i == len(score_list_pair) - 1:
-                    i_l = score_list_pair[i-1]
-                    score_list_pair.remove(i_l)
+                if len(score_list_pair) <= 3:
+                    score_list_pair.remove(max_val)
                 else:
-                    i_l, i_r= score_list_pair[i-1], score_list_pair[i+1]
-                    score_list_pair.remove(i_l)
-                    score_list_pair.remove(i_r)
-                score_list_pair.remove(max_val)
+                    if i == 0:
+                        i_r = score_list_pair[i+1]
+                        score_list_pair.remove(i_r)
+                    elif i == len(score_list_pair) - 1:
+                        i_l = score_list_pair[i-1]
+                        score_list_pair.remove(i_l)
+                    else:
+                        i_l, i_r= score_list_pair[i-1], score_list_pair[i+1]
+                        score_list_pair.remove(i_l)
+                        score_list_pair.remove(i_r)
+                    score_list_pair.remove(max_val)
             else:
                 j = score_list_pair_tmp.index(max_val)
         if i > j:
@@ -299,16 +304,16 @@ class GAmodel:
         i, j = parent_1.crossover_points()
         fitness_i, fitness_j = parent_1.gene_fitness_score[i], parent_1.gene_fitness_score[j]
         average_fitness = (fitness_i + fitness_j) / 2
-        max_average, max_parent = 1e9, None
+        min_average, min_parent = 1e9, None
         for individual in mating_pool.population:
             if individual != parent_1:
                 i_1, j_1 = individual.gene_fitness_score[i], individual.gene_fitness_score[j]
                 curr_average = (i_1 + j_1) / 2
-                max_average = min(max_average, curr_average)
-                if max_average == curr_average:
-                    max_parent = individual
+                min_average = min(min_average, curr_average)
+                if min_average == curr_average:
+                    min_parent = individual
         child = copy.deepcopy(parent_1)
-        child.x = np.concatenate((parent_1.x[:,:i], max_parent.x[:,i:j], parent_1.x[:,j:]), axis=1)
+        child.x = np.concatenate((parent_1.x[:,:i], min_parent.x[:,i:j], parent_1.x[:,j:]), axis=1)
         return child
     
     def mutation(self, individual, threshold):
@@ -405,6 +410,7 @@ class GAmodel:
                 threshold = child_1.calculate_threshold()
                 child_1.x, child_1.c = self.mutation(child_1, threshold)
                 new_population._append(child_1)
+            population = None
             population = copy.deepcopy(new_population)
             new_population = None
             population.evaluate_population()
@@ -418,7 +424,8 @@ class GAmodel:
         
         best_individual = population.population[0]
         best_solution = copy.deepcopy(best_individual.x)
-        best_solution = np.vstack((best_solution, np.array((best_individual.c))))
-        midi_array = copy.deepcopy(best_individual.x)
-
+        best_solution = np.vstack((best_solution, np.array(([chord.index for chord in best_individual.c])))).astype(int)
+        best_solution = pd.DataFrame(best_solution)
+        midi_array = copy.deepcopy(best_individual.x).astype(int)
+        
         return best_solution, midi_array, progress_array
