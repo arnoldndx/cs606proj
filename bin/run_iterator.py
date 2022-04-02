@@ -37,7 +37,7 @@ parser.add_argument('--time_limit', type = int, default = 600, help = 'Time limi
 
 # Starting up
 args = parser.parse_args()
-models = ['mp','cp','alns']
+models = ['mp','cp','alns','ga']
 
 model_dict = {'mp':'Mixed-integer linear programming',
               'cp':'Constraint programming',
@@ -59,12 +59,14 @@ results_comparison = {}
 for i in range(-6,0):
     for model in models:
         try:
-            progress_array = run_harmony_gen(model,args.file,args.weights,args.weights_data,args.hard_constraints_choice,args.time_limit,inputs,i)
+            progress_array = run_harmony_gen(model,args.file,args.weights,args.weights_data,args.hard_constraints_choice,args.time_limit,inputs,i,generation = 75)
             results_comparison[(model_dict[model],titles[i+6])] = progress_array
         except:
             print('=================== no feasible solution')
             results_comparison[(model_dict[model],titles[i+6])] = 'the model was note able to produce a feasible solution'
             pass
+
+print(results_comparison)
         
 # plot the results
 fig, axs = plt.subplots(3,2,figsize = (15,10))
@@ -111,7 +113,10 @@ for result in results_comparison.keys():
     else:
         for data in results_comparison[result]:
             time.append(data[0])
-            obj_val.append(data[1])
+            if result[0] == 'Genetic algorithm':
+                obj_val.append(data[1] % 1000)
+            else:
+                obj_val.append(data[1])
         axs[i,j].plot(time, obj_val, label = result[0])
 
 #set the legend on the first panel
