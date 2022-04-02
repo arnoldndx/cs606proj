@@ -20,7 +20,7 @@ Create environment from environment file.
 
 `conda env create -f cs606_env.yaml`
 
-Please note that the MILP and CP models require the installation of IBM's DOcplex solver.
+Please note that the MILP and CP models require the installation of IBM's DOcplex solver which can be found at: https://www.ibm.com/docs/en/icos/12.9.0?topic=docplex-python-modeling-api
 
 ## Usage
 
