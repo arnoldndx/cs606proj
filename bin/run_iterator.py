@@ -37,9 +37,9 @@ parser.add_argument('--time_limit', type = int, default = 600, help = 'Time limi
 
 # Starting up
 args = parser.parse_args()
-models = ['mp','cp','alns']
+models = ['mp','cp','alns','ga']
 
-model_dict = {'mp':'Mixed-integer programming',
+model_dict = {'mp':'Mixed-integer linear programming',
               'cp':'Constraint programming',
               'alns': 'Adaptive LNS',
               'ga': 'Genetic algorithm'}
@@ -59,12 +59,14 @@ results_comparison = {}
 for i in range(-6,0):
     for model in models:
         try:
-            progress_array = run_harmony_gen(model,args.file,args.weights,args.weights_data,args.hard_constraints_choice,args.time_limit,inputs,i)
+            progress_array = run_harmony_gen(model,args.file,args.weights,args.weights_data,args.hard_constraints_choice,args.time_limit,inputs,i,generation = 75)
             results_comparison[(model_dict[model],titles[i+6])] = progress_array
         except:
             print('=================== no feasible solution')
             results_comparison[(model_dict[model],titles[i+6])] = 'the model was note able to produce a feasible solution'
             pass
+
+print(results_comparison)
         
 # plot the results
 fig, axs = plt.subplots(3,2,figsize = (15,10))
@@ -74,7 +76,7 @@ j = 0
 title = titles[0]
 
 # plot the results
-fig, axs = plt.subplots(3,2,figsize = (15,10))
+fig, axs = plt.subplots(3,2,figsize = (15,10), sharex = True, sharey = 'row')
 
 # Hide x labels and tick labels for top plots and y ticks for right plots.
 for ax in axs.flat:
@@ -84,28 +86,24 @@ for i in range(3):
     axs[i,0].set_ylabel("Objective Value", fontsize=8)
     
 for j in range(2):
-    axs[2,j].set_xlabel("Time", fontsize=8)
+    axs[2,j].set_xlabel("Time (s)", fontsize=8)
     
 i = 0
 j = 0
 title = titles[0]
-axs[i,j].set_title(title, fontsize=8)
+axs[i,j].set_title(title, fontsize=10)
 
 for result in results_comparison.keys():
     # set the index for the subplot to draw in
     if result[1] != title and i < 2:
-        axs[i,j].legend()
-        print(title,i,j)
         i += 1
         title = result[1]
-        axs[i,j].set_title(title, fontsize=8)
+        axs[i,j].set_title(title, fontsize = 10)
     elif result[1] != title and i == 2:
-        axs[i,j].legend()
-        print(title,i,j)
         i = 0
         j += 1
         title = result[1]
-        axs[i,j].set_title(title, fontsize=8)
+        axs[i,j].set_title(title, fontsize = 10)
     
     # create the x-s and y-s
     time = []
@@ -115,11 +113,14 @@ for result in results_comparison.keys():
     else:
         for data in results_comparison[result]:
             time.append(data[0])
-            obj_val.append(data[1])
+            if result[0] == 'Genetic algorithm':
+                obj_val.append(data[1] % 1000)
+            else:
+                obj_val.append(data[1])
         axs[i,j].plot(time, obj_val, label = result[0])
 
-#set the last legend
-axs[i,j].legend()
+#set the legend on the first panel
+axs[0,0].legend()
 
     
 fig_fname = os.path.join(default_dir,

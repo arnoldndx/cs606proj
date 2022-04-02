@@ -32,7 +32,6 @@ from src.cp_model import CPModel
 # for ALNS
 from src.ALNS.alns import ALNS
 from src.ALNS.alns.criteria import HillClimbing, SimulatedAnnealing, RecordToRecordTravel
-#import src.evaluate_v0
 import src.evaluate
 import src.music_functions
 from src.mp_model_for_ALNS_construction import MPModelALNS
@@ -58,9 +57,10 @@ parser.add_argument('--weights_data', type = str, default = "../data/soft_constr
 parser.add_argument('--hard_constraints_choice', type = str, default = '../data/hard_constraint_choice.csv', help = 'Filepath for hard constraint choices')
 parser.add_argument('--time_limit', type = int, default = 600, help = 'Time limit for iterations (MP/CP) or Iteration limit for ALNS')
 parser.add_argument('--input_melody', type = str, default = '../data/test_melody.mid', help = "Filepath for the input melody. Valid filetypes: .csv, .mid")
-parser.add_argument('--max_generation', type = int, default = 300, help = 'number of generations to iterate through')
-parser.add_argument('--population_size', type = int, default = 100, help = 'population size')
-parser.add_argument('--mutation_probability', type = list, default = [0.6, 0.9], help = 'mutation probability = [lower_bound, higher_bound]')
+parser.add_argument('--music_index', type = int, default = -1, help = 'Index of music corpus to perform modelling on')
+parser.add_argument('--max_generation', type = int, default = 80, help = 'Number of generations to iterate through')
+parser.add_argument('--population_size', type = int, default = 100, help = 'Population size')
+parser.add_argument('--mutation_probability', type = list, default = [0.6, 0.9], help = 'Mutation probability = [lower_bound, higher_bound]')
 
 #%%
 # Starting up
@@ -138,7 +138,7 @@ logger.info(f'Generating Harmony with {args.method} model')
 # get start time
 start = timeit.default_timer()
 
-music = musical_corpus[-1]
+music = musical_corpus[args.music_index]
 logger.info(f'Title: {music.title}, Key: {music.key}, Tonality: {music.tonality}, Onset: {music.first_on_beat}, Melody: {music.melody}, Ref #C: {music.reference_note}')
 #%%#############################################################################################################
 if args.method == 'mp':
@@ -182,6 +182,9 @@ if args.method == 'mp':
     progress_array= [(x[0], x[1]+addon)  for x in progress_data]
     #print(progress_array)
 
+    logger.info(f'==============================================')
+    logger.info(f'Best objective is {finalcost}')
+
 #%%#############################################################################################################
 elif args.method == 'cp':
     # Importing Chord Vocabulary
@@ -220,7 +223,7 @@ elif args.method == 'cp':
                        soft_constraint_w_weights)
     
     #Solving Model
-    solution, progress_array = cp_model.solve(log_output = True, TimeLimit = args.time_limit, LogVerbosity = 'Verbose')
+    solution, progress_array = cp_model.solve(log_output = True, TimeLimit = args.time_limit, LogVerbosity = 'quiet')
     result = cp_model.get_solution()
           
    
@@ -233,7 +236,9 @@ elif args.method == 'cp':
     # midi output
     midi_array = result['Notes']
 
-
+    logger.info(f'==============================================')
+    logger.info(f'Best objective is {solution.get_objective_values()[0]}')
+    
 #%%#############################################################################################################
 elif args.method == 'ga':
     
@@ -268,15 +273,19 @@ elif args.method == 'ga':
         chord_vocab = chord_vocab_minor
     
     ga_model = GAmodel(musical_input=music,
-                       chord_vocab=chord_vocab,
-                       max_generation=args.max_generation,
-                       population_size=args.population_size,
-                       hard_constraints=hard_constraints,
-                       soft_constraint_w_weights=soft_constraint_w_weights,
-                       chord_progression_penalties=penalties_chord_progression,
-                       mutation_probability=args.mutation_probability)
+                       chord_vocab = chord_vocab,
+                       max_generation = args.max_generation * round(len(music.melody) / music.meter),
+                       population_size = args.population_size,
+                       hard_constraints = hard_constraints,
+                       soft_constraint_w_weights = soft_constraint_w_weights,
+                       chord_progression_penalties = penalties_chord_progression,
+                       mutation_probability = args.mutation_probability)
     
     df_solution, midi_array, progress_array = ga_model.solve()
+    
+    logger.info(f'==============================================')
+    logger.info(f'Total number of generations is {args.max_generation * round(len(music.melody) / music.meter)}')
+    logger.info(f'Best objective is {progress_array[-1][1]}')
     
 #%%#############################################################################################################  
 elif args.method == 'alns':
@@ -457,7 +466,8 @@ elif args.method == 'alns':
     # csv output
     df_solution = pd.DataFrame(np.array(ALNS_solution.HarmonyInput))   
     
-    logger.info(f'Best heuristic objective is {ALNS_solution.objective()}')
+    logger.info(f'==============================================')
+    logger.info(f'Best objective is {ALNS_solution.objective()}')
     
     # midi output
     midi_array = ALNS_solution.HarmonyInput[:4]

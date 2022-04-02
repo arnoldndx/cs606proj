@@ -4,7 +4,7 @@ import random
 import numpy as np
 import pandas as pd
 import src.music_functions
-import src.evaluate
+import src.evaluate_ga
 
 # most hard constraints will be translated to high penalty scores
 # single-objective genetic algorithm & fitness function
@@ -76,10 +76,9 @@ class Individual:
         self.soft_constraint_weights = soft_constraint_weights
     
     def calculate_overall_fitness(self):
-        chord_list = [c.index for c in self.c]
-        score_list = src.evaluate.evaluate_cost(
+        score_list = src.evaluate_ga.evaluate_cost(
             list_x=self.x,
-            list_c=chord_list,
+            list_c=self.c,
             key=self.musical_input.key,
             tonality=self.musical_input.tonality,
             meter=self.musical_input.meter,
@@ -421,7 +420,7 @@ class GAmodel:
                 progress_array.append((round(end_time - start_time + progress_array[-1][0],2), round(population.population[0].overall_fitness_score, 3)))
             else:
                 progress_array.append((round(end_time - start_time,2), round(population.population[0].overall_fitness_score, 3)))
-            print(_, progress_array[-1])
+            #print(_, progress_array[-1])
         
         best_individual = population.population[0]
         best_solution = copy.deepcopy(best_individual.x)

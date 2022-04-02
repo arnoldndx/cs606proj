@@ -47,7 +47,7 @@ logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s: %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
 
-def run_harmony_gen(method,file,weights,weights_data,hard_constraints_choice,time_limit,input_melody,music_index,generation=300,population=100,mutation_probability=[0.6, 0.9]):
+def run_harmony_gen(method,file,weights,weights_data,hard_constraints_choice,time_limit,input_melody,music_index,generation=80,population=100,mutation_probability=[0.6, 0.9]):
     # Setting up arguments
     # parser.add_argument('--method', type = str, default = 'mp', choices=['mp', 'cp', 'ga', 'alns'])
     # parser.add_argument("--file", type = str, default = 'harmony_gen', help = "Filename prefix. "
@@ -272,18 +272,22 @@ def run_harmony_gen(method,file,weights,weights_data,hard_constraints_choice,tim
             penalties_chord_progression = penalties_chord_progression_minor
             chord_vocab = chord_vocab_minor
 
-        ga_model = GAmodel(musical_input=music,
-                           chord_vocab=chord_vocab,
-                           max_generation=generation,
-                           population_size=population,
-                           hard_constraints=hard_constraints,
-                           soft_constraint_w_weights=soft_constraint_w_weights,
-                           chord_progression_penalties=penalties_chord_progression,
-                           mutation_probability=mutation_probability)
+        ga_model = GAmodel(musical_input = music,
+                           chord_vocab = chord_vocab,
+                           max_generation = generation * round(len(music.melody) / music.meter),
+                           population_size = population,
+                           hard_constraints = hard_constraints,
+                           soft_constraint_w_weights = soft_constraint_w_weights,
+                           chord_progression_penalties = penalties_chord_progression,
+                           mutation_probability = mutation_probability)
     
         df_solution, midi_array, progress_array = ga_model.solve()
+        
+        logger.info(f'==============================================')
+        logger.info(f'Total number of generations is {generation * round(len(music.melody) / music.meter)}')
+        logger.info(f'Best objective is {progress_array[-1][1]}')
+        
     
-    #%%  
     #%%#############################################################################################################  
     elif method == 'alns':
         #%%    
@@ -455,7 +459,7 @@ def run_harmony_gen(method,file,weights,weights_data,hard_constraints_choice,tim
         lambda_ = 0.8
     
         result = alns.iterate(harmony, omegas, lambda_, criterion,
-                              iterations = round(time_limit / 20), collect_stats=True)
+                              iterations = round(len(music.melody) / music.meter) * 15, collect_stats=True)
         
         
         # result

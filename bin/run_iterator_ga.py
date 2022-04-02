@@ -35,29 +35,26 @@ parser.add_argument('--weights_data', type = str, default = "../data/soft_constr
 parser.add_argument('--hard_constraints_choice', type = str, default = '../data/hard_constraint_choice.csv', help = 'Filepath for hard constraint choices')
 parser.add_argument('--time_limit', type = int, default = 600, help = 'Time limit for iterations (MP/CP) or Iteration limit for ALNS')
 parser.add_argument('--input_melody', type = str, default = '../data/test_melody.mid', help = "Filepath for the input melody. Valid filetypes: .csv, .mid")
-parser.add_argument('--max_generation', type = int, default = 300, help = 'number of generations to iterate through')
+parser.add_argument('--max_generation', type = int, default = 80, help = 'number of generations to iterate through')
 parser.add_argument('--population_size', type = int, default = 100, help = 'population size')
 parser.add_argument('--mutation_probability', type = list, default = [0.6, 0.9], help = 'mutation probability = [lower_bound, higher_bound]')
 
 # Starting up
 args = parser.parse_args()
-models = ['ga']
-
-model_dict = {'ga': 'Genetic algorithm'}
 
 inputs = '../data/sample_input.csv'
 
 titles = ['Minor - 16 note', 'Major - 16 note']
 
-generations = [50, 75, 100]
+generations = [25, 50, 75]
 
-populations = [100, 250, 500]
+populations = [100, 250, 500, 1000]
 
 mutation_probs = [[0.5, 0.9], [0.4, 0.9], [0.3, 0.9]]
 
 results_comparison = {}
 
-for i in range(-1, 0):
+for i in [-4,-1]:
     for generation in generations:
         for population in populations:
            # try:
@@ -74,21 +71,14 @@ for i in range(-1, 0):
                 population,
                 args.mutation_probability,
             )
-            results_comparison[((generation, population),titles[i])] = progress_array
+            results_comparison[('Gens: ' + str(generation * 4) + ', ' + 'Pop: ' + str(population),titles[0 if i == -4 else 1], generation, population)] = progress_array
             #except:
              #   print('=================== no feasible solution')
              #   results_comparison[((generation, population),titles[i])] = 'the model was note able to produce a feasible solution'
               #  pass
-        
-# plot the results
-fig, axs = plt.subplots(3,3,figsize = (15,15))
-
-i = 0
-j = 0
-title = titles[0]
 
 # plot the results
-fig, axs = plt.subplots(3,3,figsize = (15,15))
+fig, axs = plt.subplots(3,2,figsize = (15,10), sharex = True, sharey = 'row')
 
 # Hide x labels and tick labels for top plots and y ticks for right plots.
 for ax in axs.flat:
@@ -98,28 +88,28 @@ for i in range(3):
     axs[i,0].set_ylabel("Objective Value", fontsize=8)
     
 for j in range(2):
-    axs[2,j].set_xlabel("Time", fontsize=8)
+    axs[2,j].set_xlabel("Time (s)", fontsize=8)
     
 i = 0
 j = 0
 title = titles[0]
-axs[i,j].set_title(title, fontsize=8)
+gens = generations[0]
+axs[i,j].set_title(title, fontsize=10)
 
 for result in results_comparison.keys():
     # set the index for the subplot to draw in
-    if result[1] != title and i < 2:
+    if result[1] != title:
+        # print('title: ', result[1], i, j)
         axs[i,j].legend()
-        print(title,i,j)
-        i += 1
-        title = result[1]
-        axs[i,j].set_title(title, fontsize=8)
-    elif result[1] != title and i == 2:
-        axs[i,j].legend()
-        print(title,i,j)
         i = 0
         j += 1
         title = result[1]
-        axs[i,j].set_title(title, fontsize=8)
+        gens = result[2] 
+        axs[i,j].set_title(title, fontsize = 10)
+    elif result[2] != gens:
+        gens = result[2] 
+        axs[i,j].legend()
+        i += 1
     
     # create the x-s and y-s
     time = []
@@ -134,10 +124,9 @@ for result in results_comparison.keys():
 
 #set the last legend
 axs[i,j].legend()
-
     
 fig_fname = os.path.join(default_dir,
                          'outputs',
-                         f"{args.file}_{datetime.now().strftime('%H%M_%d%m%Y')}.png")
+                         f"{args.file}_iteratega_{datetime.now().strftime('%H%M_%d%m%Y')}.png")
 
 fig.savefig(fig_fname, dpi=200)
