@@ -76,9 +76,10 @@ class Individual:
         self.soft_constraint_weights = soft_constraint_weights
     
     def calculate_overall_fitness(self):
+        chord_list = [c.index for c in self.c]
         score_list = src.evaluate.evaluate_cost(
             list_x=self.x,
-            list_c=self.c,
+            list_c=chord_list,
             key=self.musical_input.key,
             tonality=self.musical_input.tonality,
             meter=self.musical_input.meter,
