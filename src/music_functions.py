@@ -289,7 +289,7 @@ def decode_constraints(hard_constraint_string, soft_constraint_string, data_type
     soft_constraint_options = ['chord progression', 'chord bass repetition', 'leap resolution',
                                'melodic movement', 'note repetition', 'parallel movement', 'voice overlap', 'adjacent bar chords',
                                'chord spacing', 'distinct notes', 'voice crossing', 'voice range']
-    string1 = bin(hard_constraint_string)
+    string1 = bin(int(hard_constraint_string))
                               
     flag = 0
     for s in string1:
