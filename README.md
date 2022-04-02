@@ -7,7 +7,7 @@ This repository contains code to generating a four-part harmony in accordance wi
 The harmony generator applies four different optimisation techniques to generate potential solutions to four-part harmony given a fixed melody.
 
 The techniques attempted are:
-- Mixed-integer Programming
+- Mixed-integer Linear Programming
 - Constraint Programming
 - Adaptive Large Neighbourhood Search
 - Genetic Algorithm
@@ -16,27 +16,34 @@ Please refer to the rest of the readme for information on how to operate this ha
 
 ## Getting Started
 
-Create environment from environment file (to be created)
+Create environment from environment file.
 
 `conda env create -f cs606_env.yaml`
+
+Please note that the MILP and CP models require the installation of IBM's DOcplex solver.
 
 ## Usage
 
 ```
 usage: run_harmony_gen.py [-h] [--method {'mp', 'cp', 'ga', 'alns'}] [--file FILE] [--weights {'defined', 'trained'}] 
-                          [--input FILEPATH]
+                          [--weights_data FILEPATH] [--hard_constraints_choice FILEPATH] [--input_melody FILEPATH] [--music_index INT]
+                          [--max_generation INT] [--population_size INT] [--mutation_probability [lower_bound, higher_bound]]
 
 Optional arguments (all have defaults):
   -h, --help            Show this help message and exit
   --method  {'mp', 'cp', 'ga', 'alns'}    
                         Choice of harmony generation method, defaults to 'mp'.
-  --file FILE           Filename prefix. You should give a meaningful name for easy tracking.
+  --file                Filename prefix. You should give a meaningful name for easy tracking.
   --weights {'defined', 'trained'}
                         Choice of whether to use train weights against a body of work or to use a pre-defined set in csv, defaults to defined.
-  --weights_data FILEPATH      Filepath to weights data csv (if 'defined' weights selected) or folder of midi files (if 'trained' weights selected)
-  --hard_constraints_choice FILEPATH Filepath for hard constraint choices in csv.
+  --weights_data        Filepath to weights data csv (if 'defined' weights selected) or folder of midi files (if 'trained' weights selected)
+  --hard_constraints_choice    Filepath for hard constraint choices in csv.
   --time_limit          Integer expressing the time limit for the solver in seconds.
-  --input_melody FILEPATH      Filepath of input melody
+  --input_melody        Filepath of input melody
+  --music_index         Integer expressing the index of the musical corpus to be used (for csv inputs with multiple melodies)
+  --max_generation      Number of generations to iterate through for genetic algorithm
+  --population_size     Population size for genetic algorithm
+  --mutation_probability       Mutation probability for genetic algorithm = [lower_bound, higher_bound]
 ```
 
 ### Examples
